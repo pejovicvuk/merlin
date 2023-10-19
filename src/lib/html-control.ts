@@ -29,10 +29,18 @@ export class HtmlControl extends HTMLElement {
     #parentOrDepth?: HtmlControl | number; // closest ancestor HtmlControl or depth from the top of the DOM if none found. undefined if not connected
     #children?: HtmlControl[];
 
-    protected onConnectedToDom() {
+    get isPartOfDom() {
+        return this.#parentOrDepth !== undefined;
     }
 
-    protected onDisconnectedFromDom() {
+    get parentControl(): HtmlControl | undefined {
+        return typeof this.#parentOrDepth === 'object' ? this.#parentOrDepth : undefined;
+    }
+
+    protected onConnectedToDom(): void {
+    }
+
+    protected onDisconnectedFromDom(): void {
     }
 
     #connectToParent(): HtmlControl | number {
@@ -88,6 +96,9 @@ export class HtmlControl extends HTMLElement {
                             this.#children.push(child);
 
                             child.#parentOrDepth = this;
+                            child.onConnectedToDom();
+
+                            break;
                         }
                         else {
                             search = search.parentElement!;
@@ -118,6 +129,7 @@ export class HtmlControl extends HTMLElement {
                         const child = this.#children[idx];
                         set.delete(child);
                         child.#parentOrDepth = this;
+                        child.onConnectedToDom();
                     }
                 }
             }

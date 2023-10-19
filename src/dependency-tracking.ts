@@ -37,7 +37,7 @@ let accessDependenciesExistingEnd = 0;
 // while if it does it will move it to accessDependenciesExistingStart - 2 and then decrement accessDependenciesExistingStart
 // by two
 
-function registerAccess (tracker: IChangeTracker, key: any): void {
+export function registerAccess (tracker: IChangeTracker, key: any): void {
     if (accessDependencies === undefined) return;
 
     const idx = evenIndexOfPair(accessDependencies, key, tracker);
@@ -51,11 +51,6 @@ function registerAccess (tracker: IChangeTracker, key: any): void {
         accessDependencies[accessDependenciesExistingStart] = key;
         accessDependencies[accessDependenciesExistingStart + 1] = tracker;
     }
-}
-
-function setAccessDependencies(arr: any[]) {
-    accessDependencies = arr;
-    accessDependenciesExistingStart = accessDependenciesExistingEnd = arr.length;
 }
 
 function reconcileAccessDependencies(listener: IChangeListener) {
@@ -78,8 +73,6 @@ function reconcileAccessDependencies(listener: IChangeListener) {
         accessDependencies!.copyWithin(0, accessDependencies!.length - accessDependenciesExistingStart);
         accessDependencies!.splice(accessDependencies!.length - accessDependenciesExistingStart, accessDependenciesExistingStart);
     }
-
-    accessDependencies = undefined;
 }
 
 class ChainedSet<T> extends Set<T> {
@@ -245,7 +238,12 @@ export function removeChangeListener(proxy: object, key: any, listener: IChangeL
 }
 
 export function evalTracked(s: string, thisArg: any, listener: IChangeListener, dependencies: any[]) {
-    setAccessDependencies(dependencies);
+    const prevDependencies = accessDependencies;
+    const prevStart = accessDependenciesExistingStart;
+    const prevEnd = accessDependenciesExistingEnd;
+
+    accessDependencies = dependencies;
+    accessDependenciesExistingStart = accessDependenciesExistingEnd = dependencies.length;
 
     try {
         const func = Function("self", "window", "globals", "console", "top", `"use strict";return (${s});`);
@@ -253,6 +251,10 @@ export function evalTracked(s: string, thisArg: any, listener: IChangeListener, 
     }
     finally {
         reconcileAccessDependencies(listener);
+
+        accessDependencies = prevDependencies;
+        accessDependenciesExistingStart = prevStart;
+        accessDependenciesExistingEnd = prevEnd;
     }
 }
 

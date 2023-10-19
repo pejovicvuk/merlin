@@ -54,12 +54,7 @@ class HtmlControlWithEventTracking extends HtmlControl {
     }
 }
 
-// -----------------------------------------------------------
-
-// class HtmlControl1 extends HtmlControlWithEventTracking {}
-// class HtmlControl2 extends HtmlControlWithEventTracking {}
-
-function ensureEvent(ev: Event, type: Function, msg: string) {
+function ensureEvent(ev: Event, type: { new(): object }, msg: string) {
     if (!(ev.sender instanceof type) || ev.message !== msg) throw new Error(`Expected type ${type.name} - ${ev.message}`);
 }
 
@@ -88,8 +83,6 @@ export async function registerParentAndChild(playground: HTMLDivElement) {
     return undefined;
 }
 
-// -----------------------------------------------------------
-
 export async function registerParentThenChild(playground: HTMLDivElement) {
     const parent = createNewElementName();
     const child = createNewElementName()
@@ -113,8 +106,6 @@ export async function registerParentThenChild(playground: HTMLDivElement) {
 
     return undefined;
 }
-
-// -----------------------------------------------------------
 
 export async function registerChildThenParent(playground: HTMLDivElement) {
     const parent = createNewElementName();
@@ -140,8 +131,6 @@ export async function registerChildThenParent(playground: HTMLDivElement) {
 
     return undefined;
 }
-
-// -----------------------------------------------------------
 
 export async function registerGrandparentAndChildThenParent(playground: HTMLDivElement) {
     const grandparent = createNewElementName();

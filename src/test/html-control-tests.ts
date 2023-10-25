@@ -18,12 +18,7 @@ class BasicControl extends HtmlControl {
     set testPropertyBinding(val: string | null) {
         if (val === this.testPropertyBinding) return;
 
-        if (val !== null) {
-            this.setAttribute('test-property', val);
-        }
-        else {
-            this.removeAttribute('test-property');
-        }
+        this.setOrRemoveAttribute('test-property', val);
     }
 }
 

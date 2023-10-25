@@ -147,4 +147,13 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
             this.setBindingAsDirty(camel);
         }
     }
+
+    setOrRemoveAttribute(qualifiedName: string, val: string | null) {
+        if (val !== null) {
+            this.setAttribute(qualifiedName, val);
+        }
+        else {
+            this.removeAttribute(qualifiedName);
+        }
+    }
 }

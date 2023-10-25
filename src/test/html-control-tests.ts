@@ -1,7 +1,7 @@
 import { IChangeListener } from "../lib/dependency-tracking";
 import { HtmlControl } from "../lib/html-control";
 import { HtmlControlCore } from "../lib/html-control-core";
-import {  createNewElementName, getEvent, postEvent, ensureEvent } from './unit-test-interfaces'
+import { createNewElementName, getEvent, postEvent, ensureEvent } from './unit-test-interfaces'
 
 class BasicControl extends HtmlControl {
     protected static override bindableProperties = ["testProperty"];
@@ -43,13 +43,13 @@ export async function testBasicControl(playground: HTMLDivElement) {
     playground.appendChild(ctl);
     if (ctl.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');
     ctl.testPropertyBinding = '1 + 2';
-    ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
+    ensureEvent(await getEvent(), ctl, 'Property changed: Result');
     if (ctl.testProperty !== 3) throw new Error('Expected testProperty === 3.');
     ctl.testPropertyBinding = '3 + 4';
-    ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
+    ensureEvent(await getEvent(), ctl, 'Property changed: Result');
     if (ctl.testProperty !== 7) throw new Error('Expected testProperty === 7.');
     playground.innerHTML = '';
-    ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
+    ensureEvent(await getEvent(), ctl, 'Property changed: Result');
     if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');
     return undefined;
 }

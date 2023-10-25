@@ -59,7 +59,10 @@ export function getEvent(): Promise<Event> {
     });
 }
 
-export function ensureEvent(ev: Event, type: { new(): object }, msg: string) {
+export function ensureEventOfType(ev: Event, type: { new(): object }, msg: string) {
     if (!(ev.sender instanceof type) || ev.message !== msg) throw new Error(`Expected type ${type.name} - ${ev.message}`);
 }
 
+export function ensureEvent(ev: Event, sender: object, msg: string) {
+    if (ev.sender !== sender || ev.message !== msg) throw new Error(`Expected type ${sender.constructor.name} - ${ev.message}`);
+}

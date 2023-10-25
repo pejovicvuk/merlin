@@ -1,164 +1,61 @@
-import { waitForBrowser, createNewElementName } from './unit-test-interfaces'
-import { HtmlControl } from '../lib/html-control'
+import { IChangeListener } from "../lib/dependency-tracking";
+import { HtmlControl } from "../lib/html-control";
+import { HtmlControlCore } from "../lib/html-control-core";
+import {  createNewElementName, getEvent, postEvent, ensureEvent } from './unit-test-interfaces'
 
-type Event = { sender: HtmlControl, message: string };
 
-let events: Event[] = [];
-let eventsAwaiter: undefined | ((event: Event) => void) = undefined;
+class BasicControl extends HtmlControl {
+    protected static override bindableProperties = ["testProperty"];
+    static observedAttributes = ["test-property"];
 
-function postEvent(sender: HtmlControl, message: string) {
-    if (eventsAwaiter === undefined) {
-        events.push({ sender, message });
+    get testProperty() {
+        return this.evaluateBinding("testProperty");
     }
-    else {
-        const awaiter = eventsAwaiter;
-        eventsAwaiter = undefined;
-        awaiter({ sender, message });
-    }
-}
 
-function getEvent(): Promise<Event> {
-    return new Promise<Event> (resolve => {
-        if (events.length > 0) {
-            const first = events[0];
-            events.splice(0, 1);
-            resolve(first);
+    get testPropertyBinding() {
+        return this.getAttribute('testProperty');
+    }
+
+    set testPropertyBinding(val: string | null) {
+        if (val === this.testPropertyBinding) return;
+
+        if (val !== null) {
+            this.setAttribute('test-property', val);
         }
         else {
-            eventsAwaiter = resolve;
+            this.removeAttribute('test-property');
         }
-    });
-}
-
-function getNestedHtmlElements(...names: string[]): string {
-    let ret = '';
-    for (const name of names) {
-        ret += '<' + name + '>';
-    }
-
-    let x = names.length;
-    while(x-- > 0) {
-        ret += '</' + names[x] + '>';
-    }
-
-    return ret;
-}
-
-class HtmlControlWithEventTracking extends HtmlControl {
-    override onConnectedToDom(): void {
-        postEvent(this, this.parentControl !== undefined ? 'child' : 'top');
-    }
-
-    override onDisconnectedFromDom(): void {
-        postEvent(this, 'disconnected');
     }
 }
 
-function ensureEvent(ev: Event, type: { new(): object }, msg: string) {
-    if (!(ev.sender instanceof type) || ev.message !== msg) throw new Error(`Expected type ${type.name} - ${ev.message}`);
+class Listener implements IChangeListener<string> {
+    #ctl: HtmlControlCore;
+
+    constructor(ctl: HtmlControlCore) {
+        this.#ctl = ctl;
+    }
+
+    onChanged(property: string): void {
+        postEvent(this.#ctl, 'Property changed: ' + property);
+    }
 }
 
-export async function registerParentAndChild(playground: HTMLDivElement) {
-    const parent = createNewElementName();
-    const child = createNewElementName()
+export async function testBasicControl(playground: HTMLDivElement) {
+    const name = createNewElementName();
+    customElements.define(name, BasicControl);
 
-    playground.innerHTML = getNestedHtmlElements(parent, child);
-
-    const parentClass = class extends HtmlControlWithEventTracking {};
-    const childClass = class extends HtmlControlWithEventTracking {};
-
-    customElements.define(parent, parentClass);
-    customElements.define(child, childClass);
-
-    await waitForBrowser();
-
-    ensureEvent(await getEvent(), parentClass, 'top');
-    ensureEvent(await getEvent(), childClass, 'child');
-
+    const ctl = document.createElement(name) as BasicControl;
+    ctl.addListener(new Listener(ctl), "testProperty", "Result");
+    playground.appendChild(ctl);
+    if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');
+    ctl.testPropertyBinding = '1 + 2';
+    ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
+    if (ctl.testProperty !== 3) throw new Error('Expected undefined.');
+    ctl.testPropertyBinding = '3 + 4';
+    ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
+    if (ctl.testProperty !== 7) throw new Error('Expected undefined.');
     playground.innerHTML = '';
-
-    ensureEvent(await getEvent(), childClass, 'disconnected');
-    ensureEvent(await getEvent(), parentClass, 'disconnected');
-
-    return undefined;
-}
-
-export async function registerParentThenChild(playground: HTMLDivElement) {
-    const parent = createNewElementName();
-    const child = createNewElementName()
-
-    playground.innerHTML = getNestedHtmlElements(parent, child);
-
-    const parentClass = class extends HtmlControlWithEventTracking {};
-    const childClass = class extends HtmlControlWithEventTracking {};
-
-    customElements.define(parent, parentClass);
-    await waitForBrowser();
-
-    ensureEvent(await getEvent(), parentClass, 'top');
-    customElements.define(child, childClass);
-    ensureEvent(await getEvent(), childClass, 'child');
-
-    playground.innerHTML = '';
-
-    ensureEvent(await getEvent(), childClass, 'disconnected');
-    ensureEvent(await getEvent(), parentClass, 'disconnected');
-
-    return undefined;
-}
-
-export async function registerChildThenParent(playground: HTMLDivElement) {
-    const parent = createNewElementName();
-    const child = createNewElementName()
-
-    playground.innerHTML = getNestedHtmlElements(parent, child);
-
-    const parentClass = class extends HtmlControlWithEventTracking {};
-    const childClass = class extends HtmlControlWithEventTracking {};
-
-    customElements.define(child, childClass);
-    await waitForBrowser();
-
-    ensureEvent(await getEvent(), childClass, 'top');
-    customElements.define(parent, parentClass);
-    ensureEvent(await getEvent(), parentClass, 'top');
-    ensureEvent(await getEvent(), childClass, 'child');
-
-    playground.innerHTML = '';
-
-    ensureEvent(await getEvent(), childClass, 'disconnected');
-    ensureEvent(await getEvent(), parentClass, 'disconnected');
-
-    return undefined;
-}
-
-export async function registerGrandparentAndChildThenParent(playground: HTMLDivElement) {
-    const grandparent = createNewElementName();
-    const parent = createNewElementName();
-    const child = createNewElementName()
-
-    playground.innerHTML = getNestedHtmlElements(grandparent, parent, child);
-
-    const grandparentClass = class extends HtmlControlWithEventTracking {};
-    const parentClass = class extends HtmlControlWithEventTracking {};
-    const childClass = class extends HtmlControlWithEventTracking {};
-    
-    customElements.define(grandparent, grandparentClass);
-    customElements.define(child, childClass);
-    await waitForBrowser();
-
-    ensureEvent(await getEvent(), grandparentClass, 'top');
-    ensureEvent(await getEvent(), childClass, 'child');
-    
-    customElements.define(parent, parentClass);
-    ensureEvent(await getEvent(), parentClass, 'child');
-    ensureEvent(await getEvent(), childClass, 'child');
-
-    playground.innerHTML = '';
-
-    ensureEvent(await getEvent(), childClass, 'disconnected');
-    ensureEvent(await getEvent(), parentClass, 'disconnected');
-    ensureEvent(await getEvent(), grandparentClass, 'disconnected');
-
+    ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
+    if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');
     return undefined;
 }

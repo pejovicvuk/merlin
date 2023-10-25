@@ -1,4 +1,5 @@
-import { registerParentAndChild, registerParentThenChild, registerChildThenParent, registerGrandparentAndChildThenParent } from './html-control-tests';
+import { registerParentAndChild, registerParentThenChild, registerChildThenParent, registerGrandparentAndChildThenParent } from './html-control-core-tests';
+import { testBasicControl } from './html-control-tests';
 
 const results = document.getElementById('results') as HTMLDivElement;
 const playground = document.getElementById('test-playground') as HTMLDivElement;
@@ -34,6 +35,7 @@ await runTest('Register parent and child.', registerParentAndChild);
 await runTest('Register parent then child.', registerParentThenChild);
 await runTest('Register child then parent.', registerChildThenParent);
 await runTest('Register grandparent and child then parent', registerGrandparentAndChildThenParent);
+await runTest('Basic control', testBasicControl);
 
 const done = document.createElement('div');
 done.innerText = 'Done.'

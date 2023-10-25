@@ -1,167 +1,150 @@
-// Returns either the closest ancestor that is a HtmlControl, or the depth
-// from the top of the DOM.
-function getFirstHtmlControlAncestorOrDepth(el: HtmlControl): HtmlControl | number {
-    let depth = 0;
-    let parent = el.parentElement;
-    
-    while(parent !== null) {
-        if (parent instanceof HtmlControl) return parent;
-        parent = parent.parentElement;
-        ++depth;
-    }
+import { indexOfTriplet } from "./algorithms";
+import { IChangeListener, IChangeTracker, clearDependencies, evalTracked } from "./dependency-tracking";
+import { HtmlControlCore } from "./html-control-core";
 
-    return depth;
+function stringToDashedLowercase(s: string) {
+    return '-' + s.toLowerCase();
 }
 
-const topLevelControlsPerDepth: (Set<HtmlControl> | undefined)[] = [];
-
-function getNthAncestor(el: Element, n: number): Element | null {
-    while(n-- > 0) {
-        const parent = el.parentElement;
-        if (parent === null) return null;
-        else el = parent;
-    }
-
-    return el;
+function camelToDash(s: string) {
+    return s.replace(/([A-Z])/g, stringToDashedLowercase);
 }
 
-export class HtmlControl extends HTMLElement {
-    #parentOrDepth?: HtmlControl | number; // closest ancestor HtmlControl or depth from the top of the DOM if none found. undefined if not connected
-    #children?: HtmlControl[];
+function dashedLowerCaseToPascal(s: string) {
+    return s.substring(1).toUpperCase();
+}
 
-    get isPartOfDom() {
-        return this.#parentOrDepth !== undefined;
-    }
+function dashToCamel(s: string){
+    return s.replace(/(\-[a-z])/g, dashedLowerCaseToPascal);
+}
 
-    get parentControl(): HtmlControl | undefined {
-        return typeof this.#parentOrDepth === 'object' ? this.#parentOrDepth : undefined;
-    }
+const undefinedPlaceholder = {};
 
-    protected onConnectedToDom(): void {
-    }
+export class HtmlControl extends HtmlControlCore implements IChangeTracker, IChangeListener<string> {
+    #bindingDependencies?: Map<string, any[]>; // for each binding the array of dependencies obtained using evalTracked. the key is the attribute name, not the camel-cased property name
+    #bindingValues?: Map<string, any>;
+    #bindingExceptions?: Map<string, any>;
+    #listeners?: any []; // we pack listeners in triples for efficiency, (key, listener, token)
 
-    protected onDisconnectedFromDom(): void {
-    }
+    protected static bindableProperties?: readonly string[];
 
-    #connectToParent(): HtmlControl | number {
-        const parent = getFirstHtmlControlAncestorOrDepth(this);
+    protected override onConnectedToDom(): void {
+        super.onConnectedToDom();
 
-        this.#parentOrDepth = parent;
+        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
+        if (ctor.bindableProperties !== undefined) {
+            if (this.#bindingDependencies === undefined) this.#bindingDependencies = new Map();
 
-        if (typeof parent === 'object') {
-            if (parent.#parentOrDepth === undefined) parent.#connectToParent();
-
-            if (parent.#children === undefined) parent.#children = [];
-            parent.#children.push(this);
-        }
-        else {
-            let set = topLevelControlsPerDepth[parent];
-            if (set === undefined) {
-                set = new Set<HtmlControl>();
-                topLevelControlsPerDepth[parent] = set;
-            }
-            set.add(this);
-        }
-
-        this.onConnectedToDom();
-
-        return parent;
-    }
-
-    connectedCallback() {
-        if (this.#parentOrDepth !== undefined) return;
-        
-        const parentOrDepth = this.#connectToParent();
-
-        if (typeof parentOrDepth === 'object') {
-            // in case we are between our parent and our children and we are only now getting the connectedCallback
-            // (probably because our customElements.define was not called until now), see if any children currently attached to
-            // the parent are actually our children and reconnect them here
-            if (parentOrDepth.#children !== undefined)  {
-                let idx = parentOrDepth.#children.length;
-                while(idx > 0) {
-                    const child: HtmlControl = parentOrDepth.#children[--idx];
-
-                    let search = child.parentElement!;
-                    for (;;) {
-                        if (search === parentOrDepth) break;
-                        else if (search === this) {
-                            // remove the child from parent
-                            const lastIdx = parentOrDepth.#children.length - 1;
-                            parentOrDepth.#children[idx] = parentOrDepth.#children[lastIdx];
-                            parentOrDepth.#children.splice(lastIdx, 1);
-
-                            // add the child to us
-                            if (this.#children === undefined) this.#children = [];
-                            this.#children.push(child);
-
-                            child.#parentOrDepth = this;
-                            child.onConnectedToDom();
-
-                            break;
-                        }
-                        else {
-                            search = search.parentElement!;
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            // in case we are a top-level control that is only now getting the connectedCallback
-            // (probably because our customElements.define was not called until now), see if there are any
-            // top-level elements that are actually our children and adopt them
-
-            for (let depth = parentOrDepth + 1; depth < topLevelControlsPerDepth.length; ++depth) {
-                const set = topLevelControlsPerDepth[depth];
-                if (set === undefined) continue;
-
-                let childrenStart = this.#children === undefined ? 0 : this.#children.length;
-                for (const ctl of set) {
-                    if (getNthAncestor(ctl, depth - parentOrDepth) !== this) continue;
-
-                    if (this.#children === undefined) this.#children = [];
-                    this.#children.push(ctl);
-                }
-
-                if (this.#children !== undefined) {
-                    for (let idx = childrenStart; idx < this.#children.length; ++idx) {
-                        const child = this.#children[idx];
-                        set.delete(child);
-                        child.#parentOrDepth = this;
-                        child.onConnectedToDom();
-                    }
-                }
+            for (const prop of ctor.bindableProperties) {
+                this.#bindingDependencies.set(prop, []);
+                this.setBindingAsDirty(prop);
             }
         }
     }
 
-    #disconnectChildrenAndSelfRecursively() {
-        const children = this.#children;
-        if (children !== undefined) {
-            this.#children = undefined;
-            for (const child of children) {
-                child.#disconnectChildrenAndSelfRecursively();
+    protected override onDisconnectedFromDom(): void {
+        super.onDisconnectedFromDom();
+
+        if (this.#bindingDependencies !== undefined) {
+            for (const [prop, dependencies] of this.#bindingDependencies.entries()) {
+                clearDependencies(this, prop, dependencies);
             }
         }
 
-        this.#parentOrDepth = undefined;
+        this.#bindingDependencies = undefined;
 
-        this.onDisconnectedFromDom();
+        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
+        if (ctor.bindableProperties !== undefined) {
+            for (const prop of ctor.bindableProperties) {
+                this.setBindingAsDirty(prop);
+            }
+        }
     }
 
-    disconnectedCallback() {
-        const parent = this.#parentOrDepth;
-        if (parent === undefined) return; // already disconnected by the parent control as it got the disconnectedCallback before us
+    protected evaluateBinding(name: string) {
+        if (!this.isPartOfDom) return undefined;
 
-        this.#disconnectChildrenAndSelfRecursively();
-        
-        if (typeof parent === 'number') {
-            topLevelControlsPerDepth[parent]!.delete(this);
+        const maybeVal = this.#bindingValues?.get(name)
+        if (maybeVal !== undefined) return maybeVal !== undefinedPlaceholder ? maybeVal : undefined;
+
+        const maybeEx = this.#bindingExceptions?.get(name);
+        if (maybeEx !== undefined) throw maybeEx;
+
+        const attr = this.getAttribute(camelToDash(name));
+        if (attr === null) {
+            if (this.#bindingValues === undefined) this.#bindingValues = new Map();
+            this.#bindingValues.set(name, undefinedPlaceholder);
+            return undefined;
         }
-        else if (typeof parent === 'object' && parent.#children !== undefined) {
-            const idx = parent.#children.indexOf(this);
-            if (idx >= 0) parent.#children.splice(idx, 1);
+
+        const dependencies = this.#bindingDependencies!.get(name)!;
+        try {
+            const val = evalTracked(attr, undefined, this, name, dependencies);
+            this.#bindingExceptions?.delete(name);
+            if (this.#bindingValues === undefined) this.#bindingValues = new Map();
+            this.#bindingValues.set(name, val === undefined ? undefinedPlaceholder : undefined);
+            return val;
+        }
+        catch(ex) {
+            this.#bindingValues?.delete(name);
+            if (this.#bindingExceptions === undefined) this.#bindingExceptions = new Map();
+            this.#bindingExceptions.set(name, ex);
+            throw ex;
+        }
+    }
+
+    protected setBindingAsDirty(name: string) {
+        if (!this.#bindingValues?.has(name) && !this.#bindingExceptions?.has(name)) return;
+
+        this.#bindingValues?.delete(name);
+        this.#bindingExceptions?.delete(name);
+
+        if (this.#listeners === undefined) return;
+
+        for (let x = 0; x < this.#listeners.length; x += 3) {
+            const k = this.#listeners[x];
+            if (k === name) {
+                const handler = this.#listeners[x + 1] as IChangeListener<any>;
+                const token = this.#listeners[x + 2];
+                handler.onChanged(token);
+            }
+        }
+    }
+
+    addListener<T>(handler: IChangeListener<T>, key: any, token: T) {
+        if (this.#listeners === undefined) this.#listeners = [];
+        this.#listeners.push(key, handler, token);
+    }
+
+    removeListener<T>(handler: IChangeListener<T>, key: any, token: T) {
+        const listeners = this.#listeners;
+        if (listeners === undefined) return;
+
+        const idx = indexOfTriplet(listeners, key, handler, token);
+        if (idx < 0) return;
+
+        const lastIdx = listeners.length - 3;
+ 
+        listeners[idx] = listeners[lastIdx];
+        listeners[idx + 1] = listeners[lastIdx + 1];
+        listeners[idx + 2] = listeners[lastIdx + 2];
+ 
+        listeners.splice(lastIdx, 3);
+    }
+
+    onChanged(name: string): void {
+        this.setBindingAsDirty(name);
+    }
+
+    override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+        super.attributeChangedCallback(name, oldValue, newValue);
+
+        if (!this.isPartOfDom) return;
+
+        const camel = dashToCamel(name);
+
+        if (this.#bindingDependencies?.has(camel)) {
+            this.setBindingAsDirty(camel);
         }
     }
 }

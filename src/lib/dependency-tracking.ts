@@ -1,28 +1,12 @@
+import { indexOfPair, indexOfTriplet } from "./algorithms";
+
 export interface IChangeTracker {
-    addListener(handler: IChangeListener, key: any): void;
-    removeListener(handler: IChangeListener, key: any): void;
+    addListener<T>(handler: IChangeListener<T>, key: any, token: T): void;
+    removeListener<T>(handler: IChangeListener<T>, key: any, token: T): void;
 }
 
-export interface IChangeListener {
-    onChanged(obj: IChangeTracker, key: any): void;
-}
-
-function evenIndexOfPair<T>(arr: readonly T[], first: T, second: T, start = 0) {
-    for (;;) {
-        const idx = arr.indexOf(first, start);
-        if (idx < 0) {
-            return -1;
-        }
-        else if ((idx & 1) !== 0) {
-            start = idx + 1;
-        }
-        else if (arr[idx + 1] === second) {
-            return idx;
-        }
-        else {
-            start = idx + 2;
-        }
-    }
+export interface IChangeListener<T> {
+    onChanged(token: T): void;
 }
 
 let accessDependencies: undefined | (any[]);
@@ -40,7 +24,7 @@ let accessDependenciesExistingEnd = 0;
 export function registerAccess (tracker: IChangeTracker, key: any): void {
     if (accessDependencies === undefined) return;
 
-    const idx = evenIndexOfPair(accessDependencies, key, tracker);
+    const idx = indexOfPair(accessDependencies, key, tracker);
     if (idx < 0) {
         accessDependencies.push(key, tracker);
     }
@@ -53,17 +37,17 @@ export function registerAccess (tracker: IChangeTracker, key: any): void {
     }
 }
 
-function reconcileAccessDependencies(listener: IChangeListener) {
+function reconcileAccessDependencies(listener: IChangeListener<any>, token: any) {
     for (let x = 0; x < accessDependenciesExistingStart; ) {
         const key = accessDependencies![x++];
         const tracker = accessDependencies![x++] as IChangeTracker;
-        tracker.removeListener(listener, key);
+        tracker.removeListener(listener, key, token);
     }
 
     for (let x = accessDependenciesExistingEnd; x < accessDependencies!.length; ) {
         const key = accessDependencies![x++];
         const tracker = accessDependencies![x++] as IChangeTracker;
-        tracker.addListener(listener, key);
+        tracker.addListener(listener, key, token);
     }
 
     if (accessDependencies!.length - accessDependenciesExistingStart < accessDependenciesExistingStart) {
@@ -151,7 +135,7 @@ function isSetter(obj: object, prop: string | symbol): boolean {
 const trackingProxyHandlerSymbol = Symbol("TrackingProxyHandler");
 
 class TrackingProxyHandler<T extends object> implements ProxyHandler<T>, IChangeTracker {
-    #listeners?: (string | symbol | IChangeListener) []; // we pack listeners in pairs for efficiency, first the key and then the object
+    #listeners?: (string | symbol | IChangeListener<any>) []; // we pack listeners in pairs for efficiency, first the key and then the object
 
     constructor(target: T) {
         const proto = Object.getPrototypeOf(target);
@@ -162,31 +146,33 @@ class TrackingProxyHandler<T extends object> implements ProxyHandler<T>, IChange
 
     #notifyListeners(key: string | symbol) {
         if (this.#listeners === undefined) return;
-        for (let x = 0; x < this.#listeners.length; x += 2) {
+        for (let x = 0; x < this.#listeners.length; x += 3) {
             const k = this.#listeners[x];
             if (k === key) {
-                const handler = this.#listeners[x + 1] as IChangeListener;
-                handler.onChanged(this, key);
+                const handler = this.#listeners[x + 1] as IChangeListener<any>;
+                const token = this.#listeners[x + 2];
+                handler.onChanged(token);
             }
         }
     }
 
-    addListener(handler: IChangeListener, key: any) {
+    addListener<T>(handler: IChangeListener<T>, key: any, token: any) {
         this.#listeners ??= [];
-        this.#listeners.push(key, handler);
+        this.#listeners.push(key, handler, token);
     }
 
-    removeListener(handler: IChangeListener, key: any) {
+    removeListener<T>(handler: IChangeListener<T>, key: any, token: any) {
         const listeners = this.#listeners;
         if (listeners === undefined) return;
 
-        const idx = evenIndexOfPair(listeners, key, handler);
+        const idx = indexOfTriplet(listeners, key, handler, token);
         if (idx < 0) return;
 
-        const lastIdx = listeners.length - 2;
+        const lastIdx = listeners.length - 3;
         listeners[idx] = listeners[lastIdx];
         listeners[idx + 1] = listeners[lastIdx + 1];
-        listeners.splice(lastIdx, 2);
+        listeners[idx + 2] = listeners[lastIdx + 2];
+        listeners.splice(lastIdx, 3);
     }
 
     get(target: T, property: string | symbol, receiver: any): any {
@@ -227,17 +213,7 @@ export function toTracked<T extends object>(obj: T) {
     return new Proxy(obj, new TrackingProxyHandler<T>(obj));
 }
 
-export function addChangeListener(proxy: object, key: any, listener: IChangeListener) {
-    const tracker = (proxy as any)[trackingProxyHandlerSymbol] as TrackingProxyHandler<object>;
-    tracker.addListener(listener, key);
-}
-
-export function removeChangeListener(proxy: object, key: any, listener: IChangeListener) {
-    const tracker = (proxy as any)[trackingProxyHandlerSymbol] as TrackingProxyHandler<object>;
-    tracker.removeListener(listener, key);
-}
-
-export function evalTracked(s: string, thisArg: any, listener: IChangeListener, dependencies: any[]) {
+export function evalTracked<T>(s: string, thisArg: any, listener: IChangeListener<T>, token: T, dependencies: any[]) {
     const prevDependencies = accessDependencies;
     const prevStart = accessDependenciesExistingStart;
     const prevEnd = accessDependenciesExistingEnd;
@@ -250,7 +226,7 @@ export function evalTracked(s: string, thisArg: any, listener: IChangeListener, 
         return func.apply(thisArg);
     }
     finally {
-        reconcileAccessDependencies(listener);
+        reconcileAccessDependencies(listener, token);
 
         accessDependencies = prevDependencies;
         accessDependenciesExistingStart = prevStart;
@@ -258,10 +234,10 @@ export function evalTracked(s: string, thisArg: any, listener: IChangeListener, 
     }
 }
 
-export function clearDependencies(listener: IChangeListener, dependencies: any[]) {
+export function clearDependencies<T>(listener: IChangeListener<T>, token: T, dependencies: any[]) {
     for (let x = 0; x < dependencies.length; x += 2) {
         const key = dependencies[x];
         const tracker = dependencies[x + 1] as IChangeTracker;
-        tracker.removeListener(listener, key);
+        tracker.removeListener(listener, key, token);
     }
 }

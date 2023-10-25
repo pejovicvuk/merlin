@@ -3,7 +3,6 @@ import { HtmlControl } from "../lib/html-control";
 import { HtmlControlCore } from "../lib/html-control-core";
 import {  createNewElementName, getEvent, postEvent, ensureEvent } from './unit-test-interfaces'
 
-
 class BasicControl extends HtmlControl {
     protected static override bindableProperties = ["testProperty"];
     static observedAttributes = ["test-property"];
@@ -47,13 +46,13 @@ export async function testBasicControl(playground: HTMLDivElement) {
     const ctl = document.createElement(name) as BasicControl;
     ctl.addListener(new Listener(ctl), "testProperty", "Result");
     playground.appendChild(ctl);
-    if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');
+    if (ctl.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');
     ctl.testPropertyBinding = '1 + 2';
     ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
-    if (ctl.testProperty !== 3) throw new Error('Expected undefined.');
+    if (ctl.testProperty !== 3) throw new Error('Expected testProperty === 3.');
     ctl.testPropertyBinding = '3 + 4';
     ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
-    if (ctl.testProperty !== 7) throw new Error('Expected undefined.');
+    if (ctl.testProperty !== 7) throw new Error('Expected testProperty === 7.');
     playground.innerHTML = '';
     ensureEvent(await getEvent(), BasicControl, 'Property changed: Result');
     if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');

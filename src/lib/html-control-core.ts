@@ -9,6 +9,7 @@ interface IHtmlControlCore extends HTMLElement {
 
     onConnectedToDom(): void;
     onDisconnectedFromDom(): void;
+    onAncestorsChanged(): void;
 }
 
 // Returns either the closest ancestor that is a HtmlControl, or the depth
@@ -51,10 +52,23 @@ function disconnectChildrenAndSelfRecursively(control: IHtmlControlCore) {
     control.onDisconnectedFromDom();
 }
 
+function notifyAncestorsChangedRecursively(control: IHtmlControlCore) {
+    control.onAncestorsChanged();
+    const children = control[childrenTag];
+    if (children !== undefined) {
+        for (const child of children) {
+            notifyAncestorsChangedRecursively(child);
+        }
+    }
+}
+
 // Provides a base class for all custom HTMLElements in out library. Basically adds a consistent, synchronous view of the parent-child
-// relationships between various controls by adding two methods and two getters:
-// onConnectedToDom - called when an element is attached to the DOM or when it's parent IHtmlControlCore has changed
-// onDisconnectedFromDom - called when an element is detached from the DOM
+// relationships between various controls by adding three methods and two getters:
+//
+// onConnectedToDom() - called when an element is attached to the DOM or when it's parent IHtmlControlCore has changed
+// onDisconnectedFromDom() - called when an element is detached from the DOM
+// onAncestorsChanged() - called when an element's chain of ancestors has changed
+//
 // get isPartOfDom - returns whether an element is part of the DOM
 // get parentControl - returns the parent HtmlCoreControl if any
 //
@@ -77,6 +91,9 @@ export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
     }
 
     onDisconnectedFromDom(): void {
+    }
+
+    onAncestorsChanged(): void {
     }
 
     [connectToParentTag](): IHtmlControlCore | number {
@@ -132,7 +149,7 @@ export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
                             this[childrenTag].push(child);
 
                             child[parentOrDepthTag] = this;
-                            child.onConnectedToDom();
+                            notifyAncestorsChangedRecursively(child);
 
                             break;
                         }
@@ -165,7 +182,7 @@ export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
                         const child = this[childrenTag][idx];
                         set.delete(child);
                         child[parentOrDepthTag] = this;
-                        child.onConnectedToDom();
+                        notifyAncestorsChangedRecursively(child);
                     }
                 }
             }

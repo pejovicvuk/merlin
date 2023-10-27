@@ -1,14 +1,17 @@
-import { waitForBrowser, createNewElementName, getNestedHtmlElements, getEvent, postEvent, ensureEventOfType } from './unit-test-interfaces'
+import { createNewElementName, getNestedHtmlElements, getEvent, postEvent, ensureEventOfType } from './unit-test-interfaces'
 import { HtmlControlCore } from '../lib/html-control-core'
-
 
 class HtmlControlWithEventTracking extends HtmlControlCore {
     override onConnectedToDom(): void {
-        postEvent(this, this.parentControl !== undefined ? 'child' : 'top');
+        postEvent(this, 'connected');
     }
 
     override onDisconnectedFromDom(): void {
         postEvent(this, 'disconnected');
+    }
+
+    override onAncestorsChanged(): void {
+        postEvent(this, 'ancestors');
     }
 }
 
@@ -24,10 +27,8 @@ export async function registerParentAndChild(playground: HTMLDivElement) {
     customElements.define(parent, parentClass);
     customElements.define(child, childClass);
 
-    await waitForBrowser();
-
-    ensureEventOfType(await getEvent(), parentClass, 'top');
-    ensureEventOfType(await getEvent(), childClass, 'child');
+    ensureEventOfType(await getEvent(), parentClass, 'connected');
+    ensureEventOfType(await getEvent(), childClass, 'connected');
 
     playground.innerHTML = '';
 
@@ -47,11 +48,10 @@ export async function registerParentThenChild(playground: HTMLDivElement) {
     const childClass = class extends HtmlControlWithEventTracking {};
 
     customElements.define(parent, parentClass);
-    await waitForBrowser();
 
-    ensureEventOfType(await getEvent(), parentClass, 'top');
+    ensureEventOfType(await getEvent(), parentClass, 'connected');
     customElements.define(child, childClass);
-    ensureEventOfType(await getEvent(), childClass, 'child');
+    ensureEventOfType(await getEvent(), childClass, 'connected');
 
     playground.innerHTML = '';
 
@@ -71,12 +71,10 @@ export async function registerChildThenParent(playground: HTMLDivElement) {
     const childClass = class extends HtmlControlWithEventTracking {};
 
     customElements.define(child, childClass);
-    await waitForBrowser();
-
-    ensureEventOfType(await getEvent(), childClass, 'top');
+    ensureEventOfType(await getEvent(), childClass, 'connected');
     customElements.define(parent, parentClass);
-    ensureEventOfType(await getEvent(), parentClass, 'top');
-    ensureEventOfType(await getEvent(), childClass, 'child');
+    ensureEventOfType(await getEvent(), parentClass, 'connected');
+    ensureEventOfType(await getEvent(), childClass, 'ancestors');
 
     playground.innerHTML = '';
 
@@ -99,14 +97,13 @@ export async function registerGrandparentAndChildThenParent(playground: HTMLDivE
     
     customElements.define(grandparent, grandparentClass);
     customElements.define(child, childClass);
-    await waitForBrowser();
 
-    ensureEventOfType(await getEvent(), grandparentClass, 'top');
-    ensureEventOfType(await getEvent(), childClass, 'child');
+    ensureEventOfType(await getEvent(), grandparentClass, 'connected');
+    ensureEventOfType(await getEvent(), childClass, 'connected');
     
     customElements.define(parent, parentClass);
-    ensureEventOfType(await getEvent(), parentClass, 'child');
-    ensureEventOfType(await getEvent(), childClass, 'child');
+    ensureEventOfType(await getEvent(), parentClass, 'connected');
+    ensureEventOfType(await getEvent(), childClass, 'ancestors');
 
     playground.innerHTML = '';
 

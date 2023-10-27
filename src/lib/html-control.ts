@@ -28,7 +28,7 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
 
     protected static bindableProperties?: readonly string[];
 
-    protected override onConnectedToDom(): void {
+    override onConnectedToDom(): void {
         super.onConnectedToDom();
 
         const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
@@ -42,7 +42,7 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
         }
     }
 
-    protected override onDisconnectedFromDom(): void {
+    override onDisconnectedFromDom(): void {
         super.onDisconnectedFromDom();
 
         if (this.#bindingDependencies !== undefined) {

@@ -128,7 +128,7 @@ export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
                             parentOrDepth[childrenTag].splice(lastIdx, 1);
 
                             // add the child to us
-                            this[childrenTag] ??= [];
+                            if (this[childrenTag] === undefined) this[childrenTag] = [];
                             this[childrenTag].push(child);
 
                             child[parentOrDepthTag] = this;
@@ -156,7 +156,7 @@ export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
                 for (const ctl of set) {
                     if (getNthAncestor(ctl, depth - parentOrDepth) !== this) continue;
 
-                    this[childrenTag] ??= [];
+                    if (this[childrenTag] === undefined) this[childrenTag] = [];
                     this[childrenTag].push(ctl);
                 }
 

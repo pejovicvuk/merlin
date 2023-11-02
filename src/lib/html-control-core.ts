@@ -10,6 +10,9 @@ interface IHtmlControlCore extends HTMLElement {
     onConnectedToDom(): void;
     onDisconnectedFromDom(): void;
     onAncestorsChanged(): void;
+
+    get parentControl(): IHtmlControlCore | undefined;
+    get isPartOfDom(): boolean;
 }
 
 // Returns either the closest ancestor that is a HtmlControl, or the depth

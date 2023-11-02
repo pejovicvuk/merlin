@@ -25,8 +25,18 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
     #bindingValues?: Map<string, any>;
     #bindingExceptions?: Map<string, any>;
     #listeners?: any []; // we pack listeners in triples for efficiency, (key, listener, token)
+    #context?: any;
 
     protected static bindableProperties?: readonly string[];
+
+    #setAllBindingsAsDirty() {
+        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
+        if (ctor.bindableProperties !== undefined) {
+            for (const prop of ctor.bindableProperties) {
+                this.setBindingAsDirty(prop);
+            }
+        }
+    }
 
     override onConnectedToDom(): void {
         super.onConnectedToDom();
@@ -42,6 +52,10 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
         }
     }
 
+    override onAncestorsChanged(): void {
+        this.#setAllBindingsAsDirty();
+    }
+
     override onDisconnectedFromDom(): void {
         super.onDisconnectedFromDom();
 
@@ -53,12 +67,7 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
 
         this.#bindingDependencies = undefined;
 
-        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
-        if (ctor.bindableProperties !== undefined) {
-            for (const prop of ctor.bindableProperties) {
-                this.setBindingAsDirty(prop);
-            }
-        }
+        this.#setAllBindingsAsDirty();
     }
 
     protected evaluateBinding(name: string) {
@@ -77,9 +86,11 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
             return undefined;
         }
 
+        const thisVal = name === 'context' ? undefined : this.context;
+
         const dependencies = this.#bindingDependencies!.get(name)!;
         try {
-            const val = evalTracked(attr, undefined, this, name, dependencies);
+            const val = evalTracked(attr, thisVal, this, name, dependencies);
             this.#bindingExceptions?.delete(name);
             if (this.#bindingValues === undefined) this.#bindingValues = new Map();
             this.#bindingValues.set(name, val === undefined ? undefinedPlaceholder : undefined);
@@ -93,12 +104,7 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
         }
     }
 
-    protected setBindingAsDirty(name: string) {
-        if (!this.#bindingValues?.has(name) && !this.#bindingExceptions?.has(name)) return;
-
-        this.#bindingValues?.delete(name);
-        this.#bindingExceptions?.delete(name);
-
+    #notifyListeners(name: string) {
         if (this.#listeners === undefined) return;
 
         for (let x = 0; x < this.#listeners.length; x += 3) {
@@ -109,6 +115,13 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
                 handler.onChanged(token);
             }
         }
+    }
+
+    protected setBindingAsDirty(name: string) {
+        const hadValue = this.#bindingValues?.delete(name) || this.#bindingExceptions?.delete(name);
+        if (!hadValue) return;
+
+        this.#notifyListeners(name);
     }
 
     addListener<T>(handler: IChangeListener<T>, key: any, token: T) {
@@ -155,5 +168,42 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
         else {
             this.removeAttribute(qualifiedName);
         }
+    }
+
+    protected getAmbientProperty(name: string, explicitVal: any): any {
+        if (explicitVal !== undefined) return explicitVal;
+
+        if (this.hasAttribute(camelToDash("context"))) return this.evaluateBinding(name);
+
+        let ctl = this.parentControl;
+        while (ctl !== undefined) {
+            if (name in ctl) return (ctl as Record<string, any>)[name];
+            ctl = ctl.parentControl;
+        }
+
+        return undefined;
+    }
+
+    get context() {
+        if (this.#context !== undefined) return this.#context;
+
+        if (this.hasAttribute("context")) return this.evaluateBinding("context");
+
+        let ctl = this.parentControl;
+        while (ctl !== undefined) {
+            if ('context' in ctl) return ctl.context;
+            ctl = ctl.parentControl;
+        }
+
+        return undefined;
+    }
+
+    set context(val: any) {
+        if (this.#context === val) return;
+
+        this.#context = val;
+
+        this.#setAllBindingsAsDirty();
+        this.#notifyListeners('context');
     }
 }

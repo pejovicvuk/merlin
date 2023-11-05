@@ -4,11 +4,19 @@ import { HtmlControlCore } from "../lib/html-control-core";
 import { createNewElementName, getEvent, postEvent, ensureEvent } from './unit-test-interfaces'
 
 class BasicControl extends HtmlControl {
-    protected static override bindableProperties = ["testProperty"];
-    static observedAttributes = ["test-property"];
+    protected static override bindableProperties = [...HtmlControl.bindableProperties, "testProperty"];
+    static override observedAttributes = [...HtmlControl.observedAttributes, "test-property"];
+
+    #testProperty?: any;
 
     get testProperty() {
-        return this.evaluateBinding("testProperty");
+        return this.getAmbientProperty('testProperty', this.#testProperty);
+    }
+
+    set testProperty(val: any) {
+        if (this.#testProperty === val) return;
+        this.#testProperty = val;
+        this.setAmbientProperty('testProperty');
     }
 
     get testPropertyBinding() {
@@ -54,10 +62,10 @@ export async function testBasicControl(playground: HTMLDivElement) {
     return undefined;
 }
 
-class ParentControl extends HtmlControl {
+class ParentControl extends BasicControl {
 };
 
-class ChildControl extends HtmlControl {
+class ChildControl extends BasicControl {
 };
 
 class Model {
@@ -77,9 +85,10 @@ export async function testContext(playground: HTMLDivElement) {
     customElements.define(childName, ChildControl);
 
     const parent = document.createElement(parentName) as ParentControl;
-    parent.addListener(new Listener(parent), "context", "Result");
+    parent.addListener(new Listener(parent), "context", "context");
     const child = document.createElement(childName) as ChildControl;
-    child.addListener(new Listener(child), "context", "Result");
+    child.addListener(new Listener(child), "context", "context");
+    child.addListener(new Listener(child), "testProperty", "testProperty");
 
     parent.appendChild(child);
 
@@ -87,7 +96,15 @@ export async function testContext(playground: HTMLDivElement) {
     parent.context = model;
 
     playground.appendChild(parent);
+    ensureEvent(await getEvent(), parent, 'Property changed: context');
+    ensureEvent(await getEvent(), child, 'Property changed: context');
 
+    child.testPropertyBinding = "this.c";
+    if (child.testProperty !== 3) throw new Error("Expected child.testProperty === 3.");
+    model.a = 3;
+    ensureEvent(await getEvent(), child, 'Property changed: testProperty');
+    if (child.testProperty !== 5) throw new Error("Expected child.testProperty === 5.");
+    
     // if (parent.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');
     // parent.testPropertyBinding = '1 + 2';
     // ensureEvent(await getEvent(), parent, 'Property changed: Result');

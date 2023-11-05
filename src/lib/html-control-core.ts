@@ -104,7 +104,7 @@ export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
     }
 
     get childControls(): readonly IHtmlControlCore[] {
-        return this[childrenTag] ?? emptyArray;
+        return this.isPartOfDom && this[childrenTag] !== undefined ? this[childrenTag] : emptyArray;
     }
 
     [connectToParentTag](): IHtmlControlCore | number {

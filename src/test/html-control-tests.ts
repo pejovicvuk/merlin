@@ -1,4 +1,4 @@
-import { IChangeListener } from "../lib/dependency-tracking";
+import { IChangeListener, toTracked } from "../lib/dependency-tracking";
 import { HtmlControl } from "../lib/html-control";
 import { HtmlControlCore } from "../lib/html-control-core";
 import { createNewElementName, getEvent, postEvent, ensureEvent } from './unit-test-interfaces'
@@ -52,4 +52,51 @@ export async function testBasicControl(playground: HTMLDivElement) {
     ensureEvent(await getEvent(), ctl, 'Property changed: Result');
     if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');
     return undefined;
+}
+
+class ParentControl extends HtmlControl {
+};
+
+class ChildControl extends HtmlControl {
+};
+
+class Model {
+    a = 1;
+
+    b = 2;
+
+    get c() {
+        return this.a + this.b;
+    }
+}
+
+export async function testContext(playground: HTMLDivElement) {
+    const parentName = createNewElementName();
+    customElements.define(parentName, ParentControl);
+    const childName = createNewElementName();
+    customElements.define(childName, ChildControl);
+
+    const parent = document.createElement(parentName) as ParentControl;
+    parent.addListener(new Listener(parent), "context", "Result");
+    const child = document.createElement(childName) as ChildControl;
+    child.addListener(new Listener(child), "context", "Result");
+
+    parent.appendChild(child);
+
+    const model = toTracked(new Model());
+    parent.context = model;
+
+    playground.appendChild(parent);
+
+    // if (parent.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');
+    // parent.testPropertyBinding = '1 + 2';
+    // ensureEvent(await getEvent(), parent, 'Property changed: Result');
+    // if (parent.testProperty !== 3) throw new Error('Expected testProperty === 3.');
+    // parent.testPropertyBinding = '3 + 4';
+    // ensureEvent(await getEvent(), parent, 'Property changed: Result');
+    // if (parent.testProperty !== 7) throw new Error('Expected testProperty === 7.');
+    // playground.innerHTML = '';
+    // ensureEvent(await getEvent(), parent, 'Property changed: Result');
+    // if (parent.testProperty !== undefined) throw new Error('Expected undefined.');
+    // return undefined;
 }

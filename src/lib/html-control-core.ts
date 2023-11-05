@@ -2,7 +2,7 @@ const parentOrDepthTag: unique symbol = Symbol('parentOrDepth');
 const childrenTag: unique symbol = Symbol('children');
 const connectToParentTag: unique symbol = Symbol('connectToParent');
 
-interface IHtmlControlCore extends HTMLElement {
+export interface IHtmlControlCore extends HTMLElement {
     [parentOrDepthTag]?: IHtmlControlCore | number; // closest ancestor HtmlControl or depth from the top of the DOM if none found. undefined if not connected
     [childrenTag]?: IHtmlControlCore[];
     [connectToParentTag](): IHtmlControlCore | number;
@@ -13,6 +13,8 @@ interface IHtmlControlCore extends HTMLElement {
 
     get parentControl(): IHtmlControlCore | undefined;
     get isPartOfDom(): boolean;
+
+    get childControls(): readonly IHtmlControlCore[];
 }
 
 // Returns either the closest ancestor that is a HtmlControl, or the depth
@@ -65,6 +67,8 @@ function notifyAncestorsChangedRecursively(control: IHtmlControlCore) {
     }
 }
 
+const emptyArray: readonly IHtmlControlCore[] = [];
+
 // Provides a base class for all custom HTMLElements in out library. Basically adds a consistent, synchronous view of the parent-child
 // relationships between various controls by adding three methods and two getters:
 //
@@ -97,6 +101,10 @@ export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
     }
 
     onAncestorsChanged(): void {
+    }
+
+    get childControls(): readonly IHtmlControlCore[] {
+        return this[childrenTag] ?? emptyArray;
     }
 
     [connectToParentTag](): IHtmlControlCore | number {
@@ -207,6 +215,6 @@ export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
         }
     }
 
-    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
+    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     }
 }

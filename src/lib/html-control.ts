@@ -1,6 +1,6 @@
 import { indexOfTriplet } from "./algorithms";
-import { IChangeListener, IChangeTracker, clearDependencies, evalTracked } from "./dependency-tracking";
-import { HtmlControlCore } from "./html-control-core";
+import { IChangeListener, IChangeTracker, clearDependencies, startEvalScope, evalTrackedScoped, endEvalScope, registerAccess } from "./dependency-tracking";
+import { HtmlControlCore, IHtmlControlCore } from "./html-control-core";
 
 function stringToDashedLowercase(s: string) {
     return '-' + s.toLowerCase();
@@ -20,6 +20,29 @@ function dashToCamel(s: string){
 
 const undefinedPlaceholder = {};
 
+interface AncestorsKey {};
+
+const ancestorsKey: AncestorsKey = {};
+
+function propagatePropertyChangeInternal(element: IHtmlControlCore, name: string, isExplicitName: string) {
+    for (const child of element.childControls) {
+        if ((child as Record<string, any>)[isExplicitName] === true) continue;
+        
+        if (name in child && 'onChanged' in child && typeof child.onChanged === 'function') {
+            child.onChanged(name);
+        }
+
+        propagatePropertyChangeInternal(child, name, isExplicitName);
+    }
+}
+
+function propagatePropertyChange(element: IHtmlControlCore, name: string) {
+    if (!element.isPartOfDom) return;
+
+    const isExplicitName = name + 'IsExplicit';
+    propagatePropertyChangeInternal(element, name, isExplicitName);
+}
+
 export class HtmlControl extends HtmlControlCore implements IChangeTracker, IChangeListener<string> {
     #bindingDependencies?: Map<string, any[]>; // for each binding the array of dependencies obtained using evalTracked. the key is the attribute name, not the camel-cased property name
     #bindingValues?: Map<string, any>;
@@ -28,15 +51,6 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
     #context?: any;
 
     protected static bindableProperties?: readonly string[];
-
-    #setAllBindingsAsDirty() {
-        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
-        if (ctor.bindableProperties !== undefined) {
-            for (const prop of ctor.bindableProperties) {
-                this.setBindingAsDirty(prop);
-            }
-        }
-    }
 
     override onConnectedToDom(): void {
         super.onConnectedToDom();
@@ -49,11 +63,13 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
                 this.#bindingDependencies.set(prop, []);
                 this.setBindingAsDirty(prop);
             }
+
+            this.#notifyListeners(ancestorsKey);
         }
     }
 
     override onAncestorsChanged(): void {
-        this.#setAllBindingsAsDirty();
+        this.#notifyListeners(ancestorsKey);
     }
 
     override onDisconnectedFromDom(): void {
@@ -63,21 +79,31 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
             for (const [prop, dependencies] of this.#bindingDependencies.entries()) {
                 clearDependencies(this, prop, dependencies);
             }
+            this.#bindingDependencies = undefined;
         }
 
-        this.#bindingDependencies = undefined;
+        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
+        if (ctor.bindableProperties !== undefined) {
+            for (const prop of ctor.bindableProperties) {
+                this.setBindingAsDirty(prop);
+            }
+        }
 
-        this.#setAllBindingsAsDirty();
+        this.#notifyListeners(ancestorsKey);
     }
 
     protected evaluateBinding(name: string) {
-        if (!this.isPartOfDom) return undefined;
-
         const maybeVal = this.#bindingValues?.get(name)
         if (maybeVal !== undefined) return maybeVal !== undefinedPlaceholder ? maybeVal : undefined;
 
         const maybeEx = this.#bindingExceptions?.get(name);
         if (maybeEx !== undefined) throw maybeEx;
+
+        if (!this.isPartOfDom) {
+            if (this.#bindingValues === undefined) this.#bindingValues = new Map();
+            this.#bindingValues.set(name, undefinedPlaceholder);
+            return undefined;
+        }
 
         const attr = this.getAttribute(camelToDash(name));
         if (attr === null) {
@@ -86,11 +112,13 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
             return undefined;
         }
 
-        const thisVal = name === 'context' ? undefined : this.context;
-
         const dependencies = this.#bindingDependencies!.get(name)!;
+        startEvalScope(dependencies);
+
         try {
-            const val = evalTracked(attr, thisVal, this, name, dependencies);
+            const thisVal = name === 'context' ? undefined : this.context;
+
+            const val = evalTrackedScoped(attr, thisVal);
             this.#bindingExceptions?.delete(name);
             if (this.#bindingValues === undefined) this.#bindingValues = new Map();
             this.#bindingValues.set(name, val === undefined ? undefinedPlaceholder : undefined);
@@ -102,9 +130,12 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
             this.#bindingExceptions.set(name, ex);
             throw ex;
         }
+        finally {
+            endEvalScope(this, name);
+        }
     }
 
-    #notifyListeners(name: string) {
+    #notifyListeners(name: string | AncestorsKey) {
         if (this.#listeners === undefined) return;
 
         for (let x = 0; x < this.#listeners.length; x += 3) {
@@ -117,9 +148,12 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
         }
     }
 
+    protected clearBinding(name: string): boolean {
+        return (this.#bindingValues?.delete(name) || this.#bindingExceptions?.delete(name)) ?? false;
+    }
+
     protected setBindingAsDirty(name: string) {
-        const hadValue = this.#bindingValues?.delete(name) || this.#bindingExceptions?.delete(name);
-        if (!hadValue) return;
+        if (!this.clearBinding(name)) return;
 
         this.#notifyListeners(name);
     }
@@ -171,31 +205,29 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
     }
 
     protected getAmbientProperty(name: string, explicitVal: any): any {
-        if (explicitVal !== undefined) return explicitVal;
+        registerAccess(this, name);
 
-        if (this.hasAttribute(camelToDash("context"))) return this.evaluateBinding(name);
-
-        let ctl = this.parentControl;
-        while (ctl !== undefined) {
-            if (name in ctl) return (ctl as Record<string, any>)[name];
-            ctl = ctl.parentControl;
+        if (explicitVal !== undefined) {
+            return explicitVal;
         }
+        else if (this.hasAttribute(camelToDash(name))) {
+            return this.evaluateBinding(name);
+        }
+        else {
+            registerAccess(this, ancestorsKey);
 
-        return undefined;
+            let ctl = this.parentControl;
+            while (ctl !== undefined) {
+                if (name in ctl) return (ctl as Record<string, any>)[name];
+                ctl = ctl.parentControl;
+            }
+
+            return undefined;
+        }
     }
 
     get context() {
-        if (this.#context !== undefined) return this.#context;
-
-        if (this.hasAttribute("context")) return this.evaluateBinding("context");
-
-        let ctl = this.parentControl;
-        while (ctl !== undefined) {
-            if ('context' in ctl) return ctl.context;
-            ctl = ctl.parentControl;
-        }
-
-        return undefined;
+        return this.getAmbientProperty('context', this.#context);
     }
 
     set context(val: any) {
@@ -203,7 +235,12 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
 
         this.#context = val;
 
-        this.#setAllBindingsAsDirty();
+        this.clearBinding('context');
         this.#notifyListeners('context');
+        propagatePropertyChange(this, 'context');
+    }
+
+    get contextIsExplicit() {
+        return this.#context !== undefined || this.hasAttribute('context');
     }
 }

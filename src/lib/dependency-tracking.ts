@@ -213,6 +213,30 @@ export function toTracked<T extends object>(obj: T) {
     return new Proxy(obj, new TrackingProxyHandler<T>(obj));
 }
 
+const dependencyChain: (any[] | number | undefined)[] = [];
+
+export function startEvalScope(dependencies: any[]) {
+    dependencyChain.push(accessDependencies);
+    dependencyChain.push(accessDependenciesExistingStart);
+    dependencyChain.push(accessDependenciesExistingEnd);
+
+    accessDependencies = dependencies;
+    accessDependenciesExistingStart = accessDependenciesExistingEnd = dependencies.length;
+}
+
+export function evalTrackedScoped(s: string, thisArg: any,) {
+    const func = Function("self", "window", "globals", "console", "top", `"use strict";return (${s});`);
+    return func.apply(thisArg);
+}
+
+export function endEvalScope<T>(listener: IChangeListener<T>, token: T) {
+    reconcileAccessDependencies(listener, token);
+
+    accessDependenciesExistingEnd = dependencyChain.pop() as number;
+    accessDependenciesExistingStart = dependencyChain.pop() as number;
+    accessDependencies = dependencyChain.pop() as undefined | any[];
+}
+
 export function evalTracked<T>(s: string, thisArg: any, listener: IChangeListener<T>, token: T, dependencies: any[]) {
     const prevDependencies = accessDependencies;
     const prevStart = accessDependenciesExistingStart;

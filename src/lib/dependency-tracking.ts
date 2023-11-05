@@ -134,10 +134,15 @@ function isSetter(obj: object, prop: string | symbol): boolean {
 
 const trackingProxyHandlerSymbol = Symbol("TrackingProxyHandler");
 
-class TrackingProxyHandler<T extends object> implements ProxyHandler<T>, IChangeTracker {
+export const hasListeners: unique symbol = Symbol("hasListeners");
+
+class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> implements ProxyHandler<T>, IChangeTracker {
     #listeners?: (string | symbol | IChangeListener<any>) []; // we pack listeners in pairs for efficiency, first the key and then the object
+    #target: T;
 
     constructor(target: T) {
+        this.#target = target;
+
         const proto = Object.getPrototypeOf(target);
         if (proto !== null) {
             if (!protoToGettersAndSetters.has(proto)) createGettersAndSetters(proto);
@@ -157,8 +162,12 @@ class TrackingProxyHandler<T extends object> implements ProxyHandler<T>, IChange
     }
 
     addListener<T>(handler: IChangeListener<T>, key: any, token: any) {
+        const noListeners = this.#listeners === undefined || this.#listeners.length === 0;
+
         this.#listeners ??= [];
         this.#listeners.push(key, handler, token);
+
+        if (noListeners) this.#target[hasListeners] = true;
     }
 
     removeListener<T>(handler: IChangeListener<T>, key: any, token: any) {
@@ -173,6 +182,8 @@ class TrackingProxyHandler<T extends object> implements ProxyHandler<T>, IChange
         listeners[idx + 1] = listeners[lastIdx + 1];
         listeners[idx + 2] = listeners[lastIdx + 2];
         listeners.splice(lastIdx, 3);
+
+        if (listeners.length === 0) this.#target[hasListeners] = false;
     }
 
     get(target: T, property: string | symbol, receiver: any): any {
@@ -209,7 +220,7 @@ class TrackingProxyHandler<T extends object> implements ProxyHandler<T>, IChange
     }
 }
 
-export function toTracked<T extends object>(obj: T) {
+export function toTracked<T extends object & { [hasListeners]?: boolean; }>(obj: T) {
     return new Proxy(obj, new TrackingProxyHandler<T>(obj));
 }
 

@@ -1,5 +1,3 @@
-import { HtmlControlCore } from "../lib/html-control-core";
-
 let nextControlId = 0;
 
 export function createNewElementName() {
@@ -20,12 +18,12 @@ export function getNestedHtmlElements(...names: string[]): string {
     return ret;
 }
 
-export type Event = { sender: HtmlControlCore, message: string };
+export type Event = { sender: object, message: string };
 
 let events: Event[] = [];
 let eventsAwaiter: undefined | ((event: Event) => void) = undefined;
 
-export function postEvent(sender: HtmlControlCore, message: string) {
+export function postEvent(sender: object, message: string) {
     if (eventsAwaiter === undefined) {
         events.push({ sender, message });
     }

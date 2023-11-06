@@ -138,11 +138,9 @@ export const hasListeners: unique symbol = Symbol("hasListeners");
 
 class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> implements ProxyHandler<T>, IChangeTracker {
     #listeners?: (string | symbol | IChangeListener<any>) []; // we pack listeners in pairs for efficiency, first the key and then the object
-    #target: T;
+    proxy!: T;
 
     constructor(target: T) {
-        this.#target = target;
-
         const proto = Object.getPrototypeOf(target);
         if (proto !== null) {
             if (!protoToGettersAndSetters.has(proto)) createGettersAndSetters(proto);
@@ -167,7 +165,7 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
         this.#listeners ??= [];
         this.#listeners.push(key, handler, token);
 
-        if (noListeners) this.#target[hasListeners] = true;
+        if (noListeners) this.proxy[hasListeners] = true;
     }
 
     removeListener<T>(handler: IChangeListener<T>, key: any, token: any) {
@@ -183,7 +181,7 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
         listeners[idx + 2] = listeners[lastIdx + 2];
         listeners.splice(lastIdx, 3);
 
-        if (listeners.length === 0) this.#target[hasListeners] = false;
+        if (listeners.length === 0) this.proxy[hasListeners] = false;
     }
 
     get(target: T, property: string | symbol, receiver: any): any {
@@ -221,7 +219,10 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
 }
 
 export function toTracked<T extends object & { [hasListeners]?: boolean; }>(obj: T) {
-    return new Proxy(obj, new TrackingProxyHandler<T>(obj));
+    const handler = new TrackingProxyHandler<T>(obj);
+    const ret = new Proxy(obj, handler);
+    handler.proxy = ret;
+    return ret;
 }
 
 const dependencyChain: (any[] | number | undefined)[] = [];

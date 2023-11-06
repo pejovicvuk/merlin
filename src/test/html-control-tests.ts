@@ -1,4 +1,4 @@
-import { IChangeListener, toTracked } from "../lib/dependency-tracking";
+import { IChangeListener, toTracked, hasListeners } from "../lib/dependency-tracking";
 import { HtmlControl } from "../lib/html-control";
 import { HtmlControlCore } from "../lib/html-control-core";
 import { createNewElementName, getEvent, postEvent, ensureEvent } from './unit-test-interfaces'
@@ -76,6 +76,10 @@ class Model {
     get c() {
         return this.a + this.b;
     }
+
+    set [hasListeners] (val: boolean) {
+        postEvent(this, 'HasListeners: ' + val);
+    }
 }
 
 export async function testContext(playground: HTMLDivElement) {
@@ -103,6 +107,7 @@ export async function testContext(playground: HTMLDivElement) {
     if (child.testProperty !== 3) throw new Error("Expected child.testProperty === 3.");
     model.a = 3;
     ensureEvent(await getEvent(), child, 'Property changed: testProperty');
+    ensureEvent(await getEvent(), model, 'HasListeners: true');
     if (child.testProperty !== 5) throw new Error("Expected child.testProperty === 5.");
     
     // if (parent.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');

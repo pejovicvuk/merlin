@@ -58,13 +58,10 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
 
         const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
         if (ctor.bindableProperties !== undefined) {
-            if (this.#bindingDependencies === undefined) this.#bindingDependencies = new Map();
-
             this.#bindingValues?.clear();
             this.#bindingExceptions?.clear();
 
             for (const prop of ctor.bindableProperties) {
-                this.#bindingDependencies.set(prop, []);
                 this.notifyListeners(prop);
             }
 
@@ -119,7 +116,12 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
             return undefined;
         }
 
-        const dependencies = this.#bindingDependencies!.get(name)!;
+        if (this.#bindingDependencies === undefined) this.#bindingDependencies = new Map();
+        let dependencies = this.#bindingDependencies.get(name);
+        if (dependencies === undefined) {
+            dependencies = [];
+            this.#bindingDependencies.set(name, dependencies);
+        }
         startEvalScope(dependencies);
 
         try {
@@ -227,7 +229,7 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
 
     protected setAmbientProperty(name: string) {
         if (!this.isPartOfDom) return;
-        
+
         this.clearBindingCache(name);
         this.notifyListeners(name);
         propagatePropertyChange(this, name);

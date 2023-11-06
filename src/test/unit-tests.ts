@@ -1,5 +1,6 @@
 import { registerParentAndChild, registerParentThenChild, registerChildThenParent, registerGrandparentAndChildThenParent } from './html-control-core-tests';
 import { testBasicControl, testContext } from './html-control-tests';
+import { throwIfHasEvents } from './unit-test-interfaces';
 
 const results = document.getElementById('results') as HTMLDivElement;
 const playground = document.getElementById('test-playground') as HTMLDivElement;
@@ -22,6 +23,8 @@ async function runTest(name: string, test: (playground: HTMLDivElement) => Promi
             div.appendChild(errorDiv);
             div.className = 'failure';
         }
+
+        throwIfHasEvents();
     }
     catch(err) {
         const errorDiv = document.createElement('div');

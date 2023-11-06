@@ -21,30 +21,20 @@ export function getNestedHtmlElements(...names: string[]): string {
 export type Event = { sender: object, message: string };
 
 let events: Event[] = [];
-let eventsAwaiter: undefined | ((event: Event) => void) = undefined;
 
 export function postEvent(sender: object, message: string) {
-    if (eventsAwaiter === undefined) {
-        events.push({ sender, message });
-    }
-    else {
-        const awaiter = eventsAwaiter;
-        eventsAwaiter = undefined;
-        awaiter({ sender, message });
-    }
+    events.push({ sender, message });
 }
 
-export function getEvent(): Promise<Event> {
-    return new Promise<Event> (resolve => {
-        if (events.length > 0) {
-            const first = events[0];
-            events.splice(0, 1);
-            resolve(first);
-        }
-        else {
-            eventsAwaiter = resolve;
-        }
-    });
+export function getEvent(): Event {
+    if (events.length === 0) throw new Error('No events found.');
+    const first = events[0];
+    events.splice(0, 1);
+    return first;
+}
+
+export function throwIfHasEvents() {
+    if (events.length > 0) throw new Error('Event queue not empty.');
 }
 
 export function ensureEventOfType(ev: Event, type: { new(): object }, msg: string) {

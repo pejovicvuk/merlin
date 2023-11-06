@@ -51,13 +51,13 @@ export async function testBasicControl(playground: HTMLDivElement) {
     playground.appendChild(ctl);
     if (ctl.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');
     ctl.testPropertyBinding = '1 + 2';
-    ensureEvent(await getEvent(), ctl, 'Property changed: Result');
+    ensureEvent(getEvent(), ctl, 'Property changed: Result');
     if (ctl.testProperty !== 3) throw new Error('Expected testProperty === 3.');
     ctl.testPropertyBinding = '3 + 4';
-    ensureEvent(await getEvent(), ctl, 'Property changed: Result');
+    ensureEvent(getEvent(), ctl, 'Property changed: Result');
     if (ctl.testProperty !== 7) throw new Error('Expected testProperty === 7.');
     playground.innerHTML = '';
-    ensureEvent(await getEvent(), ctl, 'Property changed: Result');
+    ensureEvent(getEvent(), ctl, 'Property changed: Result');
     if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');
     return undefined;
 }
@@ -100,16 +100,23 @@ export async function testContext(playground: HTMLDivElement) {
     parent.context = model;
 
     playground.appendChild(parent);
-    ensureEvent(await getEvent(), parent, 'Property changed: context');
-    ensureEvent(await getEvent(), child, 'Property changed: context');
+    ensureEvent(getEvent(), parent, 'Property changed: context');
+    ensureEvent(getEvent(), child, 'Property changed: context');
 
     child.testPropertyBinding = "this.c";
     if (child.testProperty !== 3) throw new Error("Expected child.testProperty === 3.");
     model.a = 3;
-    ensureEvent(await getEvent(), child, 'Property changed: testProperty');
-    ensureEvent(await getEvent(), model, 'HasListeners: true');
+    ensureEvent(getEvent(), child, 'Property changed: testProperty');
+    ensureEvent(getEvent(), model, 'HasListeners: true');
     if (child.testProperty !== 5) throw new Error("Expected child.testProperty === 5.");
     
+    playground.innerHTML = '';
+    ensureEvent(getEvent(), child, 'Property changed: testProperty');
+    ensureEvent(getEvent(), model, 'HasListeners: false');
+    ensureEvent(getEvent(), child, 'Property changed: context');
+    ensureEvent(getEvent(), child, 'Property changed: testProperty');
+    ensureEvent(getEvent(), parent, 'Property changed: context');
+
     // if (parent.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');
     // parent.testPropertyBinding = '1 + 2';
     // ensureEvent(await getEvent(), parent, 'Property changed: Result');

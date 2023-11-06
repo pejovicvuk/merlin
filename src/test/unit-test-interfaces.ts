@@ -37,10 +37,16 @@ export function throwIfHasEvents() {
     if (events.length > 0) throw new Error('Event queue not empty.');
 }
 
-export function ensureEventOfType(ev: Event, type: { new(): object }, msg: string) {
+export function ensureEventOfType(type: { new(): object }, msg: string) {
+    if (events.length === 0) throw new Error('No events found.');
+    const ev = events[0];
     if (!(ev.sender instanceof type) || ev.message !== msg) throw new Error(`Expected type ${type.name} - ${ev.message}`);
+    events.splice(0, 1);
 }
 
-export function ensureEvent(ev: Event, sender: object, msg: string) {
+export function ensureEvent(sender: object, msg: string) {
+    if (events.length === 0) throw new Error('No events found.');
+    const ev = events[0];
     if (ev.sender !== sender || ev.message !== msg) throw new Error(`Expected type ${sender.constructor.name} - ${ev.message}`);
+    events.splice(0, 1);
 }

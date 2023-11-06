@@ -24,10 +24,18 @@ interface AncestorsKey {};
 
 const ancestorsKey: AncestorsKey = {};
 
+function isExplicit<T extends object>(obj: T, isExplicitName: string) {
+    return (obj as Record<string, any>)[isExplicitName] === true;
+}
+
+function getIsExplicitName(name: string) {
+    return name + 'IsExplicit';
+}
+
 function propagatePropertyChangeInternal(element: IHtmlControlCore, name: string, isExplicitName: string, attributeName: string) {
     for (const child of element.childControls) {
         if ((child as Record<string, any>)[isExplicitName] === true) continue;
-        if (child.hasAttribute(attributeName)) continue;
+        if (isExplicit(child, isExplicitName) || child.hasAttribute(attributeName)) continue;
         
         if (name in child && 'onChanged' in child && typeof child.onChanged === 'function') {
             child.onChanged(name);
@@ -40,7 +48,7 @@ function propagatePropertyChangeInternal(element: IHtmlControlCore, name: string
 function propagatePropertyChange(element: IHtmlControlCore, name: string) {
     if (!element.isPartOfDom) return;
 
-    propagatePropertyChangeInternal(element, name, name + 'IsExplicit', camelToDash(name));
+    propagatePropertyChangeInternal(element, name, getIsExplicitName(name), camelToDash(name));
 }
 
 export class HtmlControl extends HtmlControlCore implements IChangeTracker, IChangeListener<string> {
@@ -62,15 +70,15 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
             this.#bindingExceptions?.clear();
 
             for (const prop of ctor.bindableProperties) {
-                this.notifyListeners(prop);
+                this.#notifyListeners(prop);
             }
 
-            this.notifyListeners(ancestorsKey);
+            this.#notifyListeners(ancestorsKey);
         }
     }
 
     override onAncestorsChanged(): void {
-        this.notifyListeners(ancestorsKey);
+        this.#notifyListeners(ancestorsKey);
     }
 
     override onDisconnectedFromDom(): void {
@@ -89,11 +97,11 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
             this.#bindingExceptions?.clear();
 
             for (const prop of ctor.bindableProperties) {
-                this.notifyListeners(prop);
+                this.#notifyListeners(prop);
             }
         }
 
-        this.notifyListeners(ancestorsKey);
+        this.#notifyListeners(ancestorsKey);
     }
 
     protected evaluateBinding(name: string) {
@@ -144,7 +152,12 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
         }
     }
 
-    protected notifyListeners(name: string | AncestorsKey) {
+    protected onPropertyChanged?(property: string): void {
+    }
+
+    #notifyListeners(name: string | AncestorsKey) {
+        if (typeof name === 'string') this.onPropertyChanged?.(name);
+
         if (this.#listeners === undefined) return;
 
         for (let x = 0; x < this.#listeners.length; x += 3) {
@@ -183,7 +196,7 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
     }
 
     onChanged(name: string): void {
-        if (this.clearBindingCache(name)) this.notifyListeners(name);
+        if (this.clearBindingCache(name)) this.#notifyListeners(name);
     }
 
     override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
@@ -193,7 +206,10 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
 
         const camel = dashToCamel(name);
 
-        if (this.clearBindingCache(camel)) this.notifyListeners(camel);
+        if (!isExplicit(this, getIsExplicitName(camel))) {
+            this.clearBindingCache(camel);
+            this.#notifyListeners(camel);
+        }
     }
 
     setOrRemoveAttribute(qualifiedName: string, val: string | null) {
@@ -231,7 +247,7 @@ export class HtmlControl extends HtmlControlCore implements IChangeTracker, ICha
         if (!this.isPartOfDom) return;
 
         this.clearBindingCache(name);
-        this.notifyListeners(name);
+        this.#notifyListeners(name);
         propagatePropertyChange(this, name);
     }
 

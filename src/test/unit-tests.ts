@@ -5,7 +5,7 @@ import { throwIfHasEvents } from './unit-test-interfaces';
 const results = document.getElementById('results') as HTMLDivElement;
 const playground = document.getElementById('test-playground') as HTMLDivElement;
 
-async function runTest(name: string, test: (playground: HTMLDivElement) => Promise<string | undefined | void>) {
+function runTest(name: string, test: (playground: HTMLDivElement) => string | undefined | void) {
     playground.innerHTML = '';
 
     const div = document.createElement('div');
@@ -13,7 +13,7 @@ async function runTest(name: string, test: (playground: HTMLDivElement) => Promi
 
     results.appendChild(div);
     try {
-        const maybeError = await test(playground);
+        const maybeError = test(playground);
         if (typeof maybeError !== 'string') {
             div.className = 'success';
         }
@@ -34,12 +34,12 @@ async function runTest(name: string, test: (playground: HTMLDivElement) => Promi
     }    
 }
 
-await runTest('Register parent and child.', registerParentAndChild);
-await runTest('Register parent then child.', registerParentThenChild);
-await runTest('Register child then parent.', registerChildThenParent);
-await runTest('Register grandparent and child then parent', registerGrandparentAndChildThenParent);
-await runTest('Basic control', testBasicControl);
-await runTest('Control context', testContext);
+runTest('Register parent and child.', registerParentAndChild);
+runTest('Register parent then child.', registerParentThenChild);
+runTest('Register child then parent.', registerChildThenParent);
+runTest('Register grandparent and child then parent', registerGrandparentAndChildThenParent);
+runTest('Basic control', testBasicControl);
+runTest('Control context', testContext);
 
 const done = document.createElement('div');
 done.innerText = 'Done.'

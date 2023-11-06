@@ -1,4 +1,4 @@
-import { createNewElementName, getNestedHtmlElements, getEvent, postEvent, ensureEventOfType } from './unit-test-interfaces'
+import { createNewElementName, getNestedHtmlElements, postEvent, ensureEventOfType } from './unit-test-interfaces'
 import { HtmlControlCore } from '../lib/html-control-core'
 
 class HtmlControlWithEventTracking extends HtmlControlCore {
@@ -15,7 +15,7 @@ class HtmlControlWithEventTracking extends HtmlControlCore {
     }
 }
 
-export async function registerParentAndChild(playground: HTMLDivElement) {
+export function registerParentAndChild(playground: HTMLDivElement) {
     const parent = createNewElementName();
     const child = createNewElementName()
 
@@ -27,18 +27,18 @@ export async function registerParentAndChild(playground: HTMLDivElement) {
     customElements.define(parent, parentClass);
     customElements.define(child, childClass);
 
-    ensureEventOfType(getEvent(), parentClass, 'connected');
-    ensureEventOfType(getEvent(), childClass, 'connected');
+    ensureEventOfType(parentClass, 'connected');
+    ensureEventOfType(childClass, 'connected');
 
     playground.innerHTML = '';
 
-    ensureEventOfType(getEvent(), childClass, 'disconnected');
-    ensureEventOfType(getEvent(), parentClass, 'disconnected');
+    ensureEventOfType(childClass, 'disconnected');
+    ensureEventOfType(parentClass, 'disconnected');
 
     return undefined;
 }
 
-export async function registerParentThenChild(playground: HTMLDivElement) {
+export function registerParentThenChild(playground: HTMLDivElement) {
     const parent = createNewElementName();
     const child = createNewElementName()
 
@@ -49,19 +49,19 @@ export async function registerParentThenChild(playground: HTMLDivElement) {
 
     customElements.define(parent, parentClass);
 
-    ensureEventOfType(getEvent(), parentClass, 'connected');
+    ensureEventOfType(parentClass, 'connected');
     customElements.define(child, childClass);
-    ensureEventOfType(getEvent(), childClass, 'connected');
+    ensureEventOfType(childClass, 'connected');
 
     playground.innerHTML = '';
 
-    ensureEventOfType(getEvent(), childClass, 'disconnected');
-    ensureEventOfType(getEvent(), parentClass, 'disconnected');
+    ensureEventOfType(childClass, 'disconnected');
+    ensureEventOfType(parentClass, 'disconnected');
 
     return undefined;
 }
 
-export async function registerChildThenParent(playground: HTMLDivElement) {
+export function registerChildThenParent(playground: HTMLDivElement) {
     const parent = createNewElementName();
     const child = createNewElementName()
 
@@ -71,20 +71,20 @@ export async function registerChildThenParent(playground: HTMLDivElement) {
     const childClass = class extends HtmlControlWithEventTracking {};
 
     customElements.define(child, childClass);
-    ensureEventOfType(getEvent(), childClass, 'connected');
+    ensureEventOfType(childClass, 'connected');
     customElements.define(parent, parentClass);
-    ensureEventOfType(getEvent(), parentClass, 'connected');
-    ensureEventOfType(getEvent(), childClass, 'ancestors');
+    ensureEventOfType(parentClass, 'connected');
+    ensureEventOfType(childClass, 'ancestors');
 
     playground.innerHTML = '';
 
-    ensureEventOfType(getEvent(), childClass, 'disconnected');
-    ensureEventOfType(getEvent(), parentClass, 'disconnected');
+    ensureEventOfType(childClass, 'disconnected');
+    ensureEventOfType(parentClass, 'disconnected');
 
     return undefined;
 }
 
-export async function registerGrandparentAndChildThenParent(playground: HTMLDivElement) {
+export function registerGrandparentAndChildThenParent(playground: HTMLDivElement) {
     const grandparent = createNewElementName();
     const parent = createNewElementName();
     const child = createNewElementName()
@@ -98,18 +98,18 @@ export async function registerGrandparentAndChildThenParent(playground: HTMLDivE
     customElements.define(grandparent, grandparentClass);
     customElements.define(child, childClass);
 
-    ensureEventOfType(getEvent(), grandparentClass, 'connected');
-    ensureEventOfType(getEvent(), childClass, 'connected');
+    ensureEventOfType(grandparentClass, 'connected');
+    ensureEventOfType(childClass, 'connected');
     
     customElements.define(parent, parentClass);
-    ensureEventOfType(getEvent(), parentClass, 'connected');
-    ensureEventOfType(getEvent(), childClass, 'ancestors');
+    ensureEventOfType(parentClass, 'connected');
+    ensureEventOfType(childClass, 'ancestors');
 
     playground.innerHTML = '';
 
-    ensureEventOfType(getEvent(), childClass, 'disconnected');
-    ensureEventOfType(getEvent(), parentClass, 'disconnected');
-    ensureEventOfType(getEvent(), grandparentClass, 'disconnected');
+    ensureEventOfType(childClass, 'disconnected');
+    ensureEventOfType(parentClass, 'disconnected');
+    ensureEventOfType(grandparentClass, 'disconnected');
 
     return undefined;
 }

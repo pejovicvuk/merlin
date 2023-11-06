@@ -1,7 +1,6 @@
-import { IChangeListener, toTracked, hasListeners } from "../lib/dependency-tracking";
+import { toTracked, hasListeners } from "../lib/dependency-tracking";
 import { HtmlControl } from "../lib/html-control";
-import { HtmlControlCore } from "../lib/html-control-core";
-import { createNewElementName, getEvent, postEvent, ensureEvent } from './unit-test-interfaces'
+import { createNewElementName, postEvent, ensureEvent, throwIfHasEvents } from './unit-test-interfaces'
 
 class BasicControl extends HtmlControl {
     protected static override bindableProperties = [...HtmlControl.bindableProperties, "testProperty"];
@@ -28,36 +27,40 @@ class BasicControl extends HtmlControl {
 
         this.setOrRemoveAttribute('test-property', val);
     }
-}
 
-class Listener implements IChangeListener<string> {
-    #ctl: HtmlControlCore;
-
-    constructor(ctl: HtmlControlCore) {
-        this.#ctl = ctl;
-    }
-
-    onChanged(property: string): void {
-        postEvent(this.#ctl, 'Property changed: ' + property);
+    protected override onPropertyChanged(property: string): void {
+        postEvent(this, 'onPropertyChanged: ' + property);
+       
     }
 }
 
-export async function testBasicControl(playground: HTMLDivElement) {
+export function testBasicControl(playground: HTMLDivElement) {
     const name = createNewElementName();
     customElements.define(name, BasicControl);
 
     const ctl = document.createElement(name) as BasicControl;
-    ctl.addListener(new Listener(ctl), "testProperty", "Result");
     playground.appendChild(ctl);
+    ensureEvent(ctl, 'onPropertyChanged: context');
+    ensureEvent(ctl, 'onPropertyChanged: testProperty');
+
+    throwIfHasEvents();
+
     if (ctl.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');
     ctl.testPropertyBinding = '1 + 2';
-    ensureEvent(getEvent(), ctl, 'Property changed: Result');
+    ensureEvent(ctl, 'onPropertyChanged: testProperty');
+
+    throwIfHasEvents();
+
     if (ctl.testProperty !== 3) throw new Error('Expected testProperty === 3.');
     ctl.testPropertyBinding = '3 + 4';
-    ensureEvent(getEvent(), ctl, 'Property changed: Result');
+    ensureEvent(ctl, 'onPropertyChanged: testProperty');
+
+    throwIfHasEvents();
+    
     if (ctl.testProperty !== 7) throw new Error('Expected testProperty === 7.');
     playground.innerHTML = '';
-    ensureEvent(getEvent(), ctl, 'Property changed: Result');
+    ensureEvent(ctl, 'onPropertyChanged: context');
+    ensureEvent(ctl, 'onPropertyChanged: testProperty');
     if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');
     return undefined;
 }
@@ -82,50 +85,44 @@ class Model {
     }
 }
 
-export async function testContext(playground: HTMLDivElement) {
+export function testContext(playground: HTMLDivElement) {
     const parentName = createNewElementName();
     customElements.define(parentName, ParentControl);
     const childName = createNewElementName();
     customElements.define(childName, ChildControl);
 
     const parent = document.createElement(parentName) as ParentControl;
-    parent.addListener(new Listener(parent), "context", "context");
     const child = document.createElement(childName) as ChildControl;
-    child.addListener(new Listener(child), "context", "context");
-    child.addListener(new Listener(child), "testProperty", "testProperty");
 
     parent.appendChild(child);
 
     const model = toTracked(new Model());
     parent.context = model;
 
+    throwIfHasEvents();
+
     playground.appendChild(parent);
-    ensureEvent(getEvent(), parent, 'Property changed: context');
-    ensureEvent(getEvent(), child, 'Property changed: context');
+    ensureEvent(parent, 'onPropertyChanged: context');
+    ensureEvent(parent, 'onPropertyChanged: testProperty');
+    ensureEvent(child, 'onPropertyChanged: context');
+    ensureEvent(child, 'onPropertyChanged: testProperty');
+
+    throwIfHasEvents();
 
     child.testPropertyBinding = "this.c";
+    ensureEvent(child, 'onPropertyChanged: testProperty');
     if (child.testProperty !== 3) throw new Error("Expected child.testProperty === 3.");
     model.a = 3;
-    ensureEvent(getEvent(), child, 'Property changed: testProperty');
-    ensureEvent(getEvent(), model, 'HasListeners: true');
+    ensureEvent(model, 'HasListeners: true');
+    ensureEvent(child, 'onPropertyChanged: testProperty');
     if (child.testProperty !== 5) throw new Error("Expected child.testProperty === 5.");
     
+    throwIfHasEvents();
+    
     playground.innerHTML = '';
-    ensureEvent(getEvent(), child, 'Property changed: testProperty');
-    ensureEvent(getEvent(), model, 'HasListeners: false');
-    ensureEvent(getEvent(), child, 'Property changed: context');
-    ensureEvent(getEvent(), child, 'Property changed: testProperty');
-    ensureEvent(getEvent(), parent, 'Property changed: context');
-
-    // if (parent.testProperty !== undefined) throw new Error('Expected testProperty === undefined.');
-    // parent.testPropertyBinding = '1 + 2';
-    // ensureEvent(await getEvent(), parent, 'Property changed: Result');
-    // if (parent.testProperty !== 3) throw new Error('Expected testProperty === 3.');
-    // parent.testPropertyBinding = '3 + 4';
-    // ensureEvent(await getEvent(), parent, 'Property changed: Result');
-    // if (parent.testProperty !== 7) throw new Error('Expected testProperty === 7.');
-    // playground.innerHTML = '';
-    // ensureEvent(await getEvent(), parent, 'Property changed: Result');
-    // if (parent.testProperty !== undefined) throw new Error('Expected undefined.');
-    // return undefined;
+    ensureEvent(model, 'HasListeners: false');
+    ensureEvent(child, 'onPropertyChanged: context');
+    ensureEvent(child, 'onPropertyChanged: testProperty');
+    ensureEvent(parent, 'onPropertyChanged: context');
+    ensureEvent(parent, 'onPropertyChanged: testProperty');
 }

@@ -1,6 +1,6 @@
 import { bindable } from "./bindable-control";
 import { HtmlControl } from "./html-control";
-import { ITask, cancelTaskExecution, enqueTask, execute } from "./task-queue";
+import { ITask } from "./task-queue";
 
 @bindable('text')
 export class TextControl extends HtmlControl implements ITask<string> {
@@ -31,41 +31,20 @@ export class TextControl extends HtmlControl implements ITask<string> {
         this.setOrRemoveAttribute('text', val);
     }
 
-    [execute](property: string): void {
-        if (property === 'text') {
-            this.#setTextTaskId = undefined;
-
-            try {
-                this.shadowRoot!.textContent = '' + this.text;
-            }
-            catch (err) {
-                this.shadowRoot!.textContent = '' + err;
-            }
+    #setShadowText() {
+        try {
+            this.shadowRoot!.textContent = this.isPartOfDom ? '' + this.text : '';
         }
-        else {
-            super[execute](property);
+        catch (err) {
+            this.shadowRoot!.textContent = '' + err;
         }
     }
 
-    #setTextTaskId?: number;
-
-    protected override onPropertyChanged(property: string): void {
-        if (property === 'text') {
-            if (this.#setTextTaskId === undefined) {
-                this.#setTextTaskId = enqueTask(this, 'text');
-            }
-        }
-        else {
-            super.onPropertyChanged(property);
-        }
+    protected override evaluateProperty(property: string): void {
+        if (property === 'text') this.#setShadowText();
+        else super.evaluateProperty(property);
     }
 
-    override onDisconnectedFromDom(): void {
-        if (this.#setTextTaskId !== undefined) {
-            cancelTaskExecution(this.#setTextTaskId);
-            this.#setTextTaskId = undefined;
-        }
-    }
 }
 
 customElements.define('text-control', TextControl);

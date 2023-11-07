@@ -60,9 +60,16 @@ export function bindable(...properties: string[]) {
         if (!Object.hasOwn(ctl, 'bindableProperties')) {
             ctl.bindableProperties = ctl.bindableProperties !== undefined ? [...ctl.bindableProperties, ...properties] : [...properties];
         }
+        else {
+            ctl.bindableProperties!.push(...properties);
+        }
+
         if (!Object.hasOwn(ctl, 'observedAttributes')) {
             const mapped = properties.map(x => camelToDash(x));
             ctl.observedAttributes = ctl.observedAttributes !== undefined ? [...ctl.observedAttributes, ...mapped] : [...mapped];
+        }
+        else {
+            ctl.observedAttributes!.push(...properties);
         }
     };
 }
@@ -74,6 +81,8 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
     #bindingExceptions?: Map<string, any>;
     #listeners?: any []; // we pack listeners in triples for efficiency, (key, listener, token)
     #context?: any;
+
+    static observedAttributes: string[] = [];
 
     override onConnectedToDom(): void {
         super.onConnectedToDom();

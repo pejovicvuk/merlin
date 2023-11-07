@@ -154,7 +154,12 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
             if (k === key) {
                 const handler = this.#listeners[x + 1] as IChangeListener<any>;
                 const token = this.#listeners[x + 2];
-                handler.onChanged(token);
+                try {
+                    handler.onChanged(token);
+                }
+                catch(err) {
+                    console.log(err);
+                }
             }
         }
     }

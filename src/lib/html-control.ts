@@ -1,267 +1,72 @@
-import { indexOfTriplet } from "./algorithms";
-import { IChangeListener, IChangeTracker, clearDependencies, startEvalScope, evalTrackedScoped, endEvalScope, registerAccess } from "./dependency-tracking";
-import { HtmlControlCore, IHtmlControlCore } from "./html-control-core";
+import { BindableControl, bindable } from "./bindable-control";
+import { ITask, cancelTaskExecution, enqueTask, execute } from "./task-queue";
 
-function stringToDashedLowercase(s: string) {
-    return '-' + s.toLowerCase();
-}
+@bindable('additionalClasses')
+export class HtmlControl extends BindableControl implements ITask<string> {
+    #additionalClasses?: string;
+    #lastKnownAdditionalClasses?: string
 
-function camelToDash(s: string) {
-    return s.replace(/([A-Z])/g, stringToDashedLowercase);
-}
-
-function dashedLowerCaseToPascal(s: string) {
-    return s.substring(1).toUpperCase();
-}
-
-function dashToCamel(s: string){
-    return s.replace(/(\-[a-z])/g, dashedLowerCaseToPascal);
-}
-
-const undefinedPlaceholder = {};
-
-interface AncestorsKey {};
-
-const ancestorsKey: AncestorsKey = {};
-
-function isExplicit<T extends object>(obj: T, isExplicitName: string) {
-    return (obj as Record<string, any>)[isExplicitName] === true;
-}
-
-function getIsExplicitName(name: string) {
-    return name + 'IsExplicit';
-}
-
-function propagatePropertyChangeInternal(element: IHtmlControlCore, name: string, isExplicitName: string, attributeName: string) {
-    for (const child of element.childControls) {
-        if ((child as Record<string, any>)[isExplicitName] === true) continue;
-        if (isExplicit(child, isExplicitName) || child.hasAttribute(attributeName)) continue;
-        
-        if (name in child && 'onChanged' in child && typeof child.onChanged === 'function') {
-            child.onChanged(name);
-        }
-
-        propagatePropertyChangeInternal(child, name, isExplicitName, attributeName);
+    get additionalClasses() {
+        return this.getProperty('additionalClasses', this.#additionalClasses);
     }
-}
 
-function propagatePropertyChange(element: IHtmlControlCore, name: string) {
-    if (!element.isPartOfDom) return;
+    set additionalClasses(val: string | undefined) {
+        if (this.#additionalClasses === val) return;
+        this.#additionalClasses = val;
+        this.setProperty('additionalClasses');
+    }
 
-    propagatePropertyChangeInternal(element, name, getIsExplicitName(name), camelToDash(name));
-}
+    #mergeClasses() {
+        const additionalClasses = this.additionalClasses;
 
-export class HtmlControl extends HtmlControlCore implements IChangeTracker, IChangeListener<string> {
-    #bindingDependencies?: Map<string, any[]>; // for each binding the array of dependencies obtained using evalTracked. the key is the attribute name, not the camel-cased property name
-    #bindingValues?: Map<string, any>;
-    #bindingExceptions?: Map<string, any>;
-    #listeners?: any []; // we pack listeners in triples for efficiency, (key, listener, token)
-    #context?: any;
+        if (this.#lastKnownAdditionalClasses === additionalClasses) return;
 
-    protected static bindableProperties = ['context'];
-    static observedAttributes = ['context'];
+        const oldClasses = this.#lastKnownAdditionalClasses?.split(/ +/);
+        const newClasses = additionalClasses?.split(/ +/);
 
-    override onConnectedToDom(): void {
-        super.onConnectedToDom();
-
-        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
-        if (ctor.bindableProperties !== undefined) {
-            this.#bindingValues?.clear();
-            this.#bindingExceptions?.clear();
-
-            for (const prop of ctor.bindableProperties) {
-                this.#notifyListeners(prop);
+        if (oldClasses !== undefined) {
+            for (const cls of oldClasses) {
+                if (newClasses === undefined || newClasses.indexOf(cls) < 0) {
+                    this.classList.remove(cls);
+                }
             }
+        }
+        if (newClasses !== undefined) {
+            for (const cls of newClasses) {
+                if (oldClasses === undefined || oldClasses.indexOf(cls) < 0) {
+                    this.classList.add(cls);
+                }
+            }
+        }
 
-            this.#notifyListeners(ancestorsKey);
+        this.#lastKnownAdditionalClasses = additionalClasses;
+    }
+
+    [execute](property: string): void {
+        if (property === 'additionalClasses') {
+            this.#setAdditionalClassesTaskId = undefined;
+
+            this.#mergeClasses();
         }
     }
 
-    override onAncestorsChanged(): void {
-        this.#notifyListeners(ancestorsKey);
+    #setAdditionalClassesTaskId?: number;
+
+    protected override onPropertyChanged(property: string): void {
+        if (property === 'additionalClasses') {
+            if (this.#setAdditionalClassesTaskId === undefined) {
+                this.#setAdditionalClassesTaskId = enqueTask(this, 'additionalClasses');
+            }
+        }
+        else {
+            super.onPropertyChanged?.(property);
+        }
     }
 
     override onDisconnectedFromDom(): void {
-        super.onDisconnectedFromDom();
-
-        if (this.#bindingDependencies !== undefined) {
-            for (const [prop, dependencies] of this.#bindingDependencies.entries()) {
-                clearDependencies(this, prop, dependencies);
-            }
-            this.#bindingDependencies = undefined;
+        if (this.#setAdditionalClassesTaskId !== undefined) {
+            cancelTaskExecution(this.#setAdditionalClassesTaskId);
+            this.#setAdditionalClassesTaskId = undefined;
         }
-
-        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
-        if (ctor.bindableProperties !== undefined) {
-            this.#bindingValues?.clear();
-            this.#bindingExceptions?.clear();
-
-            for (const prop of ctor.bindableProperties) {
-                this.#notifyListeners(prop);
-            }
-        }
-
-        this.#notifyListeners(ancestorsKey);
-    }
-
-    protected evaluateBinding(name: string) {
-        const maybeVal = this.#bindingValues?.get(name)
-        if (maybeVal !== undefined) return maybeVal !== undefinedPlaceholder ? maybeVal : undefined;
-
-        const maybeEx = this.#bindingExceptions?.get(name);
-        if (maybeEx !== undefined) throw maybeEx;
-
-        if (!this.isPartOfDom) {
-            if (this.#bindingValues === undefined) this.#bindingValues = new Map();
-            this.#bindingValues.set(name, undefinedPlaceholder);
-            return undefined;
-        }
-
-        const attr = this.getAttribute(camelToDash(name));
-        if (attr === null) {
-            if (this.#bindingValues === undefined) this.#bindingValues = new Map();
-            this.#bindingValues.set(name, undefinedPlaceholder);
-            return undefined;
-        }
-
-        if (this.#bindingDependencies === undefined) this.#bindingDependencies = new Map();
-        let dependencies = this.#bindingDependencies.get(name);
-        if (dependencies === undefined) {
-            dependencies = [];
-            this.#bindingDependencies.set(name, dependencies);
-        }
-        startEvalScope(dependencies);
-
-        try {
-            const thisVal = name === 'context' ? undefined : this.context;
-
-            const val = evalTrackedScoped(attr, thisVal);
-            this.#bindingExceptions?.delete(name);
-            if (this.#bindingValues === undefined) this.#bindingValues = new Map();
-            this.#bindingValues.set(name, val === undefined ? undefinedPlaceholder : undefined);
-            return val;
-        }
-        catch(ex) {
-            this.#bindingValues?.delete(name);
-            if (this.#bindingExceptions === undefined) this.#bindingExceptions = new Map();
-            this.#bindingExceptions.set(name, ex);
-            throw ex;
-        }
-        finally {
-            endEvalScope(this, name);
-        }
-    }
-
-    protected onPropertyChanged?(property: string): void {
-    }
-
-    #notifyListeners(name: string | AncestorsKey) {
-        if (typeof name === 'string') this.onPropertyChanged?.(name);
-
-        if (this.#listeners === undefined) return;
-
-        for (let x = 0; x < this.#listeners.length; x += 3) {
-            const k = this.#listeners[x];
-            if (k === name) {
-                const handler = this.#listeners[x + 1] as IChangeListener<any>;
-                const token = this.#listeners[x + 2];
-                handler.onChanged(token);
-            }
-        }
-    }
-
-    protected clearBindingCache(name: string): boolean | undefined {
-        return (this.#bindingValues?.delete(name) || this.#bindingExceptions?.delete(name));
-    }
-
-    addListener<T>(handler: IChangeListener<T>, key: any, token: T) {
-        if (this.#listeners === undefined) this.#listeners = [];
-        this.#listeners.push(key, handler, token);
-    }
-
-    removeListener<T>(handler: IChangeListener<T>, key: any, token: T) {
-        const listeners = this.#listeners;
-        if (listeners === undefined) return;
-
-        const idx = indexOfTriplet(listeners, key, handler, token);
-        if (idx < 0) return;
-
-        const lastIdx = listeners.length - 3;
- 
-        listeners[idx] = listeners[lastIdx];
-        listeners[idx + 1] = listeners[lastIdx + 1];
-        listeners[idx + 2] = listeners[lastIdx + 2];
- 
-        listeners.splice(lastIdx, 3);
-    }
-
-    onChanged(name: string): void {
-        if (this.clearBindingCache(name)) this.#notifyListeners(name);
-    }
-
-    override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
-        super.attributeChangedCallback(name, oldValue, newValue);
-
-        if (!this.isPartOfDom) return;
-
-        const camel = dashToCamel(name);
-
-        if (!isExplicit(this, getIsExplicitName(camel))) {
-            this.clearBindingCache(camel);
-            this.#notifyListeners(camel);
-        }
-    }
-
-    setOrRemoveAttribute(qualifiedName: string, val: string | null) {
-        if (val !== null) {
-            this.setAttribute(qualifiedName, val);
-        }
-        else {
-            this.removeAttribute(qualifiedName);
-        }
-    }
-
-    protected getAmbientProperty(name: string, explicitVal: any): any {
-        registerAccess(this, name);
-
-        if (explicitVal !== undefined) {
-            return explicitVal;
-        }
-        else if (this.hasAttribute(camelToDash(name))) {
-            return this.evaluateBinding(name);
-        }
-        else {
-            registerAccess(this, ancestorsKey);
-
-            let ctl = this.parentControl;
-            while (ctl !== undefined) {
-                if (name in ctl) return (ctl as Record<string, any>)[name];
-                ctl = ctl.parentControl;
-            }
-
-            return undefined;
-        }
-    }
-
-    protected setAmbientProperty(name: string) {
-        if (!this.isPartOfDom) return;
-
-        this.clearBindingCache(name);
-        this.#notifyListeners(name);
-        propagatePropertyChange(this, name);
-    }
-
-    get context() {
-        return this.getAmbientProperty('context', this.#context);
-    }
-
-    set context(val: any) {
-        if (this.#context === val) return;
-        this.#context = val;
-        this.setAmbientProperty('context');
-    }
-
-    get contextIsExplicit() {
-        return this.#context !== undefined;
     }
 }

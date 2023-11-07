@@ -1,11 +1,9 @@
 import { toTracked, hasListeners } from "../lib/dependency-tracking";
-import { HtmlControl } from "../lib/html-control";
+import { BindableControl, bindable } from "../lib/bindable-control";
 import { createNewElementName, postEvent, ensureEvent, throwIfHasEvents } from './unit-test-interfaces'
 
-class BasicControl extends HtmlControl {
-    protected static override bindableProperties = [...HtmlControl.bindableProperties, "testProperty"];
-    static override observedAttributes = [...HtmlControl.observedAttributes, "test-property"];
-
+@bindable('testProperty')
+class BasicControl extends BindableControl {
     #testProperty?: any;
 
     get testProperty() {
@@ -30,7 +28,6 @@ class BasicControl extends HtmlControl {
 
     protected override onPropertyChanged(property: string): void {
         postEvent(this, 'onPropertyChanged: ' + property);
-       
     }
 }
 

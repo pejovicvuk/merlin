@@ -1,0 +1,24 @@
+<html>
+    <head>
+        <title>Unit Tests</title>
+        <style>
+            .border-1px {
+                border: 1px solid #333;
+                padding: 0.2em 1ch;
+            }
+            .odd {
+                background-color: lightblue;
+            }
+            .even {
+                background-color: lightpink;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Visual Tests</h1>
+        <h2>Text</h2>
+        Text:&nbsp;<text-control id="text-binding" class="border-1px" text="this.result" additional-classes="this.classes"></text-control>
+
+        <script type="module" src="../dist/test/visual-tests"></script>
+    </body>
+</html>

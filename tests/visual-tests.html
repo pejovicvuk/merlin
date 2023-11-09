@@ -11,12 +11,13 @@
             .even {
                 background-color: lightpink;
             }
-            #context {
+            .form {
                 display: grid;
                 grid-template-columns: min-content 20ch;
                 gap: 0.2em;
                 margin-right: auto;
                 align-items: baseline;
+                white-space: nowrap;
             }
             text-control, input[is="text-input"] {
                 padding: 0.2em 0.5ch;
@@ -25,15 +26,53 @@
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 14px;
             }
+            .picker {
+                margin: 0.5ch 0;
+            }
+            .picker > input {
+                min-width: 10em;
+            }
+            .picker > input:invalid {
+                background: rgba(255, 182, 193, 0.243);
+            }
         </style>
     </head>
     <body>
-        <h1>Visual Tests</h1>
-        <h2>Text</h2>
         <context-control id="context">
-            <span>Input:</span><input is="text-input" type="text" text="this.text" hint="this.hint">
-            <span>Input:</span><input is="text-input" type="search" text="this.text" hint="this.hint">
-            <span>Text:</span><text-control class="border-1px" text="this.text" additional-classes="this.classes" on-click="this.clicked">&nbsp;</text-control>
+            <h1>Visual Tests</h1>
+
+            <h2>Text and Classes</h2>
+            <div class="form">
+                <span>Input:</span><input is="text-input" type="text" text="this.text" hint="this.hint">
+                <span>Input:</span><input is="text-input" type="search" text="this.text" hint="this.hint">
+                <span>Text:</span><text-control class="border-1px" text="this.text" additional-classes="this.textClasses" on-click="this.clicked">&nbsp;</text-control>
+            </div>
+            <h2>Checkboxes</h2>
+
+            <input is="bool-input" type="checkbox" checked-value="this.redAndBlue" id="red-or-blue"><label for="red-or-blue">Red and Blue</label>
+            <input is="bool-input" type="checkbox" checked-value="this.red" id="red"><label for="red">Red</label>
+            <input is="bool-input" type="checkbox" checked-value="this.blue" id="blue"><label for="blue">Blue</label>
+
+            <h2>Radios</h2>
+            <input is="bool-input" type="radio" checked-value="this.option1" id="option1"><label for="option1">Red</label>
+            <input is="bool-input" type="radio" checked-value="this.option2" id="option2"><label for="option2">Blue</label>
+
+            <h2>Pickers</h2>
+            <div class="picker">
+                Time <input is="text-input" type="time" text="this.time" required> read as: <text-control text="this.time"></text-control>
+            </div>
+            <div class="picker">
+                Date <input is="text-input" type="date" text="this.date"> read as: <text-control text="this.date"></text-control>
+            </div>
+            <div class="picker">
+                Color <input is="text-input" type="color" text="this.color"> read as: <text-control text="this.color"></text-control>
+            </div>
+            <div class="picker">
+                Month <input is="text-input" type="month" text="this.month"> read as: <text-control text="this.month"></text-control>
+            </div>
+
+            <h2>Validity</h2>
+            Enter email: <input is="text-input" type="text" size="20">
         </context-control>
 
         <script type="module" src="../dist/test/visual-tests"></script>

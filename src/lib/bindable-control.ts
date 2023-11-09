@@ -108,6 +108,7 @@ export interface IBindableControl extends IChangeTracker, IHtmlControlCore, IBin
     notifyPropertySetExplicitly(name: string): void;
     notifyAmbientPropertySetExplicitly(name: string): void;
     writeToBindingSource<T>(property: string, val: T): boolean;
+    writeToBindingSourceByAttribute<T>(attributeName: string, val: T): boolean;
 }
 
 export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (new () => IBindableControl) & { observedAttributes: string[]; bindableProperties: string[]; } {
@@ -344,6 +345,10 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
 
         writeToBindingSource<T>(property: string, val: T): boolean {
             const attributeName = propertyNameToAttributeName(property);
+            return this.writeToBindingSourceByAttribute(attributeName, val);
+        }
+
+        writeToBindingSourceByAttribute<T>(attributeName: string, val: T): boolean {
             const expression = this.getAttribute(attributeName);
             if (expression === null) return false;
 

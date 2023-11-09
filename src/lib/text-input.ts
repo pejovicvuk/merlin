@@ -49,12 +49,13 @@ export class TextInput extends HtmlInputControl implements HtmlControlProperty<'
                 'typeof hint !== string';
         }
         catch (err) {
-            this.value = '' + err;
+            this.placeholder = '' + err;
         }
     }
 
     #onInputImpl() {
         this.writeToBindingSource('text', this.value);
+        this.writeToBindingSourceByAttribute('is-valid', this.checkValidity());
     }
 
     static #onInput(ev: Event) {

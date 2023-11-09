@@ -1,12 +1,12 @@
-import { bindable } from "./bindable-control";
-import { HtmlControl } from "./html-control";
-import { ITask } from "./task-queue";
+import { setOrRemoveAttribute } from "./bindable-control";
+import { HtmlControl, HtmlControlProperty } from "./html-control";
 
-@bindable('text')
-export class TextControl extends HtmlControl implements ITask<string> {
+export class TextControl extends HtmlControl implements HtmlControlProperty<'text', any> {
+    static override observedAttributes = [...HtmlControl.observedAttributes, 'text'];
+    static override bindableProperties = [...HtmlControl.bindableProperties, 'text'];
+
     constructor() {
         super();
-
         this.attachShadow({mode: "open"});
     }
 
@@ -19,32 +19,35 @@ export class TextControl extends HtmlControl implements ITask<string> {
     set text(val: any) {
         if (this.#text === val) return;
         this.#text = val;
-        this.setProperty('text');
+        this.notifyPropertySetExplicitly('text');
     }
 
     get textBinding() {
         return this.getAttribute('text');
     }
 
-    set textBinding(val: string | null) {
-        if (val === this.textBinding) return;
-        this.setOrRemoveAttribute('text', val);
+    get textIsExplicit() {
+        return true;
     }
 
-    #setShadowText() {
+    onTextChanged() {
         try {
-            this.shadowRoot!.textContent = this.isPartOfDom ? '' + this.text : '';
+            const text = (this.isPartOfDom ? '' + this.text : '').trim();
+            if (text === '') {
+                this.shadowRoot!.innerHTML = '&nbsp';
+            }
+            else {
+                this.shadowRoot!.textContent = text;
+            }
         }
         catch (err) {
             this.shadowRoot!.textContent = '' + err;
         }
     }
 
-    protected override evaluateProperty(property: string): void {
-        if (property === 'text') this.#setShadowText();
-        else super.evaluateProperty(property);
+    set textBinding(val: string | null) {
+        if (val === this.textBinding) return;
+        setOrRemoveAttribute(this, 'text', val);
     }
-
 }
 
-customElements.define('text-control', TextControl);

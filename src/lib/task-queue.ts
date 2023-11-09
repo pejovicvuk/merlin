@@ -1,12 +1,7 @@
 import { CircularBuffer } from "./circular-buffer";
 
-export const execute: unique symbol = Symbol("execute");
+export type Task<T> = (arg: T) => void;
 
-export interface ITask<T> {
-    [execute](arg: T): void;
-}
-
-type Task<T> = ITask<T> | ((arg: T) => void);
 
 const queue = new CircularBuffer<Task<any> | undefined | any>();
 
@@ -23,8 +18,7 @@ export function executeQueuedTasks() {
         queueStart += 2;
 
         try {
-            if (typeof task === 'function') task(arg);
-            else task[execute](arg);
+            task(arg);
         }
         catch(err) {
             console.error(err);

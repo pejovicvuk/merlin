@@ -4,7 +4,6 @@
         <style>
             .border-1px {
                 border: 1px solid #333;
-                padding: 0.2em 1ch;
             }
             .odd {
                 background-color: lightblue;
@@ -12,12 +11,30 @@
             .even {
                 background-color: lightpink;
             }
+            #context {
+                display: grid;
+                grid-template-columns: min-content 20ch;
+                gap: 0.2em;
+                margin-right: auto;
+                align-items: baseline;
+            }
+            text-control, input[is="text-input"] {
+                padding: 0.2em 0.5ch;
+            }
+            body {
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 14px;
+            }
         </style>
     </head>
     <body>
         <h1>Visual Tests</h1>
         <h2>Text</h2>
-        Text:&nbsp;<text-control id="text-binding" class="border-1px" text="this.result" additional-classes="this.classes" on-click="this.clicked"></text-control>
+        <context-control id="context">
+            <span>Input:</span><input is="text-input" type="text" text="this.text">
+            <span>Input:</span><input is="text-input" type="text" text="this.text">
+            <span>Text:</span><text-control class="border-1px" text="this.text" additional-classes="this.classes" on-click="this.clicked"></text-control>
+        </context-control>
 
         <script type="module" src="../dist/test/visual-tests"></script>
     </body>

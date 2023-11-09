@@ -1,5 +1,6 @@
-import { BindableControl, bindable } from "./bindable-control";
-import { ITask, cancelTaskExecution, enqueTask, execute } from "./task-queue";
+import { BindableControl, IBindableControlProperty, IBindableControl, makeBindableControl } from "./bindable-control";
+import { makeHtmlControlCore } from "./html-control-core";
+import { cancelTaskExecution, enqueTask } from "./task-queue";
 
 const click: unique symbol = Symbol("click");
 
@@ -8,102 +9,137 @@ function clickHandler(ev: MouseEvent) {
     (((ev.currentTarget as any)[click]) as undefined | ((ev: MouseEvent) => void))?.(ev);
 }
 
-@bindable('additionalClasses')
-export class HtmlControl extends BindableControl implements ITask<string> {
-    readonly #scheduledEvaluations = new Map<string, number>();
-    #additionalClasses?: string;
-    #lastKnownAdditionalClasses?: string
+export type HtmlControlProperty<T extends string, R> = IBindableControlProperty<T, R> & {
+    readonly [_ in `on${Capitalize<T>}Changed`]: () => void;
+};
 
-    static override observedAttributes = [...BindableControl.observedAttributes, 'on-click'];
+const changedHandlerMap = new Map<string, string>();
 
-    get additionalClasses() {
-        return this.getProperty('additionalClasses', this.#additionalClasses);
+function getChangedHanlderName(property: string) {
+    let ret = changedHandlerMap.get(property);
+    if (ret === undefined) {
+        ret = 'on' + property[0].toUpperCase() + property.slice(1) + 'Changed';
+        changedHandlerMap.set(property, ret);
     }
-
-    set additionalClasses(val: string | undefined) {
-        if (this.#additionalClasses === val) return;
-        this.#additionalClasses = val;
-        this.setProperty('additionalClasses');
-    }
-
-    #mergeClasses() {
-        let additionalClasses: string | undefined = undefined;
-        if (this.isPartOfDom) {
-            try {
-                const ac = this.additionalClasses;
-                additionalClasses = typeof ac === 'string' ? ac : undefined;
-            }
-            catch(err) {
-                console.log(err);
-            }
-        }
-
-        if (this.#lastKnownAdditionalClasses === additionalClasses) return;
-
-        const oldClasses = this.#lastKnownAdditionalClasses?.split(/ +/);
-        const newClasses = additionalClasses?.split(/ +/);
-
-        if (oldClasses !== undefined) {
-            for (const cls of oldClasses) {
-                if (newClasses === undefined || newClasses.indexOf(cls) < 0) {
-                    this.classList.remove(cls);
-                }
-            }
-        }
-        if (newClasses !== undefined) {
-            for (const cls of newClasses) {
-                if (oldClasses === undefined || oldClasses.indexOf(cls) < 0) {
-                    this.classList.add(cls);
-                }
-            }
-        }
-
-        this.#lastKnownAdditionalClasses = additionalClasses;
-    }
-
-    protected evaluateProperty(property: string) {
-        if (property === 'additionalClasses') {
-            this.#mergeClasses();
-        }
-    }
-
-    [execute](property: string): void {
-        this.#scheduledEvaluations.delete(property);
-        this.evaluateProperty(property);
-    }
-
-    protected override onPropertyChanged(property: string): void {
-        if (!this.isPartOfDom) return;
-
-        if (!this.#scheduledEvaluations.has(property)) {
-            this.#scheduledEvaluations.set(property, enqueTask(this, property));
-        }
-
-        super.onPropertyChanged?.(property);
-    }
-
-    override onDisconnectedFromDom(): void {
-        for (const [property, taskId] of this.#scheduledEvaluations.entries()) {
-            cancelTaskExecution(taskId);
-            this.evaluateProperty(property);
-        }
-
-        this.#scheduledEvaluations.clear();
-    }
-
-    [click](ev: MouseEvent): void {
-    }
-
-    override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
-        super.attributeChangedCallback(name, oldValue, newValue);
-
-        if (name === "on-click") {
-            if (oldValue === null && newValue !== null) {
-                this.addEventListener('click', clickHandler);
-            }
-            else if (oldValue !== null && newValue === null) {
-                this.removeEventListener('click', clickHandler);
-            }
-        }
-    }
+    return ret;
 }
+
+export interface IHtmlControl extends IBindableControl, HtmlControlProperty<'additionalClasses', string | undefined> {
+}
+
+export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new () => IHtmlControl) & { observedAttributes: string[]; bindableProperties: string[]; } {
+    return class HtmlControl extends BaseClass implements IHtmlControl {
+        readonly #scheduledEvaluations = new Map<string, number>();
+        #additionalClasses?: string;
+        #lastKnownAdditionalClasses?: string
+
+        static observedAttributes = [...BindableControl.observedAttributes, 'additionalClasses', 'on-click'];
+        static bindableProperties = [...BindableControl.bindableProperties, 'additionalClasses'];
+
+        get additionalClasses() {
+            return this.getProperty('additionalClasses', this.#additionalClasses);
+        }
+
+        set additionalClasses(val: string | undefined) {
+            if (this.#additionalClasses === val) return;
+            this.#additionalClasses = val;
+            this.notifyPropertySetExplicitly('additionalClasses');
+        }
+
+        get additionalClassesIsExplicit() {
+            return this.#additionalClasses !== undefined;
+        }
+
+        onAdditionalClassesChanged() {
+            let additionalClasses: string | undefined = undefined;
+            if (this.isPartOfDom) {
+                try {
+                    const ac = this.additionalClasses;
+                    additionalClasses = typeof ac === 'string' ? ac : undefined;
+                }
+                catch(err) {
+                    console.log(err);
+                }
+            }
+
+            if (this.#lastKnownAdditionalClasses === additionalClasses) return;
+
+            const oldClasses = this.#lastKnownAdditionalClasses?.split(/ +/);
+            const newClasses = additionalClasses?.split(/ +/);
+
+            if (oldClasses !== undefined) {
+                for (const cls of oldClasses) {
+                    if (newClasses === undefined || newClasses.indexOf(cls) < 0) {
+                        this.classList.remove(cls);
+                    }
+                }
+            }
+            if (newClasses !== undefined) {
+                for (const cls of newClasses) {
+                    if (oldClasses === undefined || oldClasses.indexOf(cls) < 0) {
+                        this.classList.add(cls);
+                    }
+                }
+            }
+
+            this.#lastKnownAdditionalClasses = additionalClasses;
+        }
+
+        #evaluatePropertyCallbackImpl(property: string): void {
+            this.#scheduledEvaluations.delete(property);
+            const handler = (this as Record<string, any>)[getChangedHanlderName(property)];
+            if (typeof handler === 'function') handler.call(this);
+        }
+
+        #evaluatePropertyCallback = (property: string) => this.#evaluatePropertyCallbackImpl(property);
+
+        override onPropertyChanged(property: string): void {
+            if (!this.isPartOfDom) return;
+
+            if (!this.#scheduledEvaluations.has(property)) {
+                this.#scheduledEvaluations.set(property, enqueTask(this.#evaluatePropertyCallback, property));
+            }
+
+            super.onPropertyChanged(property);
+        }
+
+        override onDisconnectedFromDom(): void {
+            for (const [property, taskId] of this.#scheduledEvaluations.entries()) {
+                cancelTaskExecution(taskId);
+                const handler = (this as Record<string, any>)[getChangedHanlderName(property)];
+                if (typeof handler === 'function') {
+                    try {
+                        handler.call(this);
+                    }
+                    catch(err) {
+                        console.log(err);
+                    }
+                }
+            }
+
+            this.#scheduledEvaluations.clear();
+        }
+
+        [click](ev: MouseEvent): void {
+        }
+
+        override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+            super.attributeChangedCallback(name, oldValue, newValue);
+
+            if (name === "on-click") {
+                if (oldValue === null && newValue !== null) {
+                    this.addEventListener('click', clickHandler);
+                }
+                else if (oldValue !== null && newValue === null) {
+                    this.removeEventListener('click', clickHandler);
+                }
+            }
+        }
+    };
+}
+
+export const HtmlControl = makeHtmlControl(BindableControl);
+export type HtmlControl = IHtmlControl;
+
+export type HtmlInputControl = IHtmlControl & HTMLInputElement;
+export const HtmlInputControl = makeHtmlControl(makeBindableControl(makeHtmlControlCore(HTMLInputElement))) as (new () => IHtmlControl & HTMLInputElement) & { observedAttributes: string[]; bindableProperties: string[]; };

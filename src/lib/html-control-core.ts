@@ -1,6 +1,6 @@
-const parentOrDepthTag: unique symbol = Symbol('parentOrDepth');
-const childrenTag: unique symbol = Symbol('children');
-const connectToParentTag: unique symbol = Symbol('connectToParent');
+export const parentOrDepthTag: unique symbol = Symbol('parentOrDepth');
+export const childrenTag: unique symbol = Symbol('children');
+export const connectToParentTag: unique symbol = Symbol('connectToParent');
 
 export interface IHtmlControlCore extends HTMLElement {
     [parentOrDepthTag]?: IHtmlControlCore | number; // closest ancestor HtmlControl or depth from the top of the DOM if none found. undefined if not connected
@@ -15,6 +15,10 @@ export interface IHtmlControlCore extends HTMLElement {
     get isPartOfDom(): boolean;
 
     get childControls(): readonly IHtmlControlCore[];
+
+    connectedCallback(): void;
+    disconnectedCallback(): void;
+    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void;
 }
 
 // Returns either the closest ancestor that is a HtmlControl, or the depth
@@ -82,139 +86,144 @@ const emptyArray: readonly IHtmlControlCore[] = [];
 // The reason for this class is that, depending on the browser queue and when customElements.define is called, the parent HtmlControl
 // may change while the page is loading. The above callbacks provide a consistent interface for getting the parent IHtmlControl.
 
-export class HtmlControlCore extends HTMLElement implements IHtmlControlCore {
-    [parentOrDepthTag]?: IHtmlControlCore | number; // closest ancestor HtmlControl or depth from the top of the DOM if none found. undefined if not connected
-    [childrenTag]?: IHtmlControlCore[];
-
-    get isPartOfDom() {
-        return this[parentOrDepthTag] !== undefined;
-    }
-
-    get parentControl(): IHtmlControlCore | undefined {
-        return typeof this[parentOrDepthTag] === 'object' ? this[parentOrDepthTag] : undefined;
-    }
-
-    onConnectedToDom(): void {
-    }
-
-    onDisconnectedFromDom(): void {
-    }
-
-    onAncestorsChanged(): void {
-    }
-
-    get childControls(): readonly IHtmlControlCore[] {
-        return this.isPartOfDom && this[childrenTag] !== undefined ? this[childrenTag] : emptyArray;
-    }
-
-    [connectToParentTag](): IHtmlControlCore | number {
-        const parent = getFirstHtmlControlAncestorOrDepth(this);
-
-        this[parentOrDepthTag] = parent;
-
-        if (typeof parent === 'object') {
-            if (parent[parentOrDepthTag] === undefined) parent[connectToParentTag]();
-
-            if (parent[childrenTag] === undefined) parent[childrenTag] = [];
-            parent[childrenTag].push(this);
+export function makeHtmlControlCore(BaseClass: new () => HTMLElement): new () => IHtmlControlCore {
+    return class HtmlControlCore extends BaseClass implements IHtmlControlCore {
+        [parentOrDepthTag]?: IHtmlControlCore | number; // closest ancestor HtmlControl or depth from the top of the DOM if none found. undefined if not connected
+        [childrenTag]?: IHtmlControlCore[];
+    
+        get isPartOfDom() {
+            return this[parentOrDepthTag] !== undefined;
         }
-        else {
-            let set = topLevelControlsPerDepth[parent];
-            if (set === undefined) {
-                set = new Set<IHtmlControlCore>();
-                topLevelControlsPerDepth[parent] = set;
+    
+        get parentControl(): IHtmlControlCore | undefined {
+            return typeof this[parentOrDepthTag] === 'object' ? this[parentOrDepthTag] : undefined;
+        }
+    
+        onConnectedToDom(): void {
+        }
+    
+        onDisconnectedFromDom(): void {
+        }
+    
+        onAncestorsChanged(): void {
+        }
+    
+        get childControls(): readonly IHtmlControlCore[] {
+            return this.isPartOfDom && this[childrenTag] !== undefined ? this[childrenTag] : emptyArray;
+        }
+    
+        [connectToParentTag](): IHtmlControlCore | number {
+            const parent = getFirstHtmlControlAncestorOrDepth(this);
+    
+            this[parentOrDepthTag] = parent;
+    
+            if (typeof parent === 'object') {
+                if (parent[parentOrDepthTag] === undefined) parent[connectToParentTag]();
+    
+                if (parent[childrenTag] === undefined) parent[childrenTag] = [];
+                parent[childrenTag].push(this);
             }
-            set.add(this);
+            else {
+                let set = topLevelControlsPerDepth[parent];
+                if (set === undefined) {
+                    set = new Set<IHtmlControlCore>();
+                    topLevelControlsPerDepth[parent] = set;
+                }
+                set.add(this);
+            }
+    
+            this.onConnectedToDom();
+    
+            return parent;
         }
-
-        this.onConnectedToDom();
-
-        return parent;
-    }
-
-    connectedCallback() {
-        if (this[parentOrDepthTag] !== undefined) return;
-
-        const parentOrDepth = this[connectToParentTag]();
-
-        if (typeof parentOrDepth === 'object') {
-            // in case we are between our parent and our children and we are only now getting the connectedCallback
-            // (probably because our customElements.define was not called until now), see if any children currently attached to
-            // the parent are actually our children and reconnect them here
-            if (parentOrDepth[childrenTag] !== undefined) {
-                let idx = parentOrDepth[childrenTag].length;
-                while (idx > 0) {
-                    const child: IHtmlControlCore = parentOrDepth[childrenTag][--idx];
-
-                    let search = child.parentElement!;
-                    for (; ;) {
-                        if (search === parentOrDepth) break;
-                        else if (search === this) {
-                            // remove the child from parent
-                            const lastIdx = parentOrDepth[childrenTag].length - 1;
-                            parentOrDepth[childrenTag][idx] = parentOrDepth[childrenTag][lastIdx];
-                            parentOrDepth[childrenTag].splice(lastIdx, 1);
-
-                            // add the child to us
-                            if (this[childrenTag] === undefined) this[childrenTag] = [];
-                            this[childrenTag].push(child);
-
+    
+        connectedCallback() {
+            if (this[parentOrDepthTag] !== undefined) return;
+    
+            const parentOrDepth = this[connectToParentTag]();
+    
+            if (typeof parentOrDepth === 'object') {
+                // in case we are between our parent and our children and we are only now getting the connectedCallback
+                // (probably because our customElements.define was not called until now), see if any children currently attached to
+                // the parent are actually our children and reconnect them here
+                if (parentOrDepth[childrenTag] !== undefined) {
+                    let idx = parentOrDepth[childrenTag].length;
+                    while (idx > 0) {
+                        const child: IHtmlControlCore = parentOrDepth[childrenTag][--idx];
+    
+                        let search = child.parentElement!;
+                        for (; ;) {
+                            if (search === parentOrDepth) break;
+                            else if (search === this) {
+                                // remove the child from parent
+                                const lastIdx = parentOrDepth[childrenTag].length - 1;
+                                parentOrDepth[childrenTag][idx] = parentOrDepth[childrenTag][lastIdx];
+                                parentOrDepth[childrenTag].splice(lastIdx, 1);
+    
+                                // add the child to us
+                                if (this[childrenTag] === undefined) this[childrenTag] = [];
+                                this[childrenTag].push(child);
+    
+                                child[parentOrDepthTag] = this;
+                                notifyAncestorsChangedRecursively(child);
+    
+                                break;
+                            }
+                            else {
+                                search = search.parentElement!;
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                // in case we are a top-level control that is only now getting the connectedCallback
+                // (probably because our customElements.define was not called until now), see if there are any
+                // top-level elements that are actually our children and adopt them
+    
+                for (let depth = parentOrDepth + 1; depth < topLevelControlsPerDepth.length; ++depth) {
+                    const set = topLevelControlsPerDepth[depth];
+                    if (set === undefined) continue;
+    
+                    let childrenStart = this[childrenTag] === undefined ? 0 : this[childrenTag].length;
+                    for (const ctl of set) {
+                        if (getNthAncestor(ctl, depth - parentOrDepth) !== this) continue;
+    
+                        if (this[childrenTag] === undefined) this[childrenTag] = [];
+                        this[childrenTag].push(ctl);
+                    }
+    
+                    if (this[childrenTag] !== undefined) {
+                        for (let idx = childrenStart; idx < this[childrenTag].length; ++idx) {
+                            const child = this[childrenTag][idx];
+                            set.delete(child);
                             child[parentOrDepthTag] = this;
                             notifyAncestorsChangedRecursively(child);
-
-                            break;
-                        }
-                        else {
-                            search = search.parentElement!;
                         }
                     }
                 }
             }
         }
-        else {
-            // in case we are a top-level control that is only now getting the connectedCallback
-            // (probably because our customElements.define was not called until now), see if there are any
-            // top-level elements that are actually our children and adopt them
-
-            for (let depth = parentOrDepth + 1; depth < topLevelControlsPerDepth.length; ++depth) {
-                const set = topLevelControlsPerDepth[depth];
-                if (set === undefined) continue;
-
-                let childrenStart = this[childrenTag] === undefined ? 0 : this[childrenTag].length;
-                for (const ctl of set) {
-                    if (getNthAncestor(ctl, depth - parentOrDepth) !== this) continue;
-
-                    if (this[childrenTag] === undefined) this[childrenTag] = [];
-                    this[childrenTag].push(ctl);
-                }
-
-                if (this[childrenTag] !== undefined) {
-                    for (let idx = childrenStart; idx < this[childrenTag].length; ++idx) {
-                        const child = this[childrenTag][idx];
-                        set.delete(child);
-                        child[parentOrDepthTag] = this;
-                        notifyAncestorsChangedRecursively(child);
-                    }
-                }
+    
+        disconnectedCallback() {
+            const parent = this[parentOrDepthTag];
+            if (parent === undefined) return; // already disconnected by the parent control as it got the disconnectedCallback before us
+    
+            disconnectChildrenAndSelfRecursively(this);
+    
+            if (typeof parent === 'number') {
+                topLevelControlsPerDepth[parent]!.delete(this);
+            }
+            else if (typeof parent === 'object' && parent[childrenTag] !== undefined) {
+                const idx = parent[childrenTag].indexOf(this);
+                if (idx >= 0) parent[childrenTag].splice(idx, 1);
             }
         }
-    }
-
-    disconnectedCallback() {
-        const parent = this[parentOrDepthTag];
-        if (parent === undefined) return; // already disconnected by the parent control as it got the disconnectedCallback before us
-
-        disconnectChildrenAndSelfRecursively(this);
-
-        if (typeof parent === 'number') {
-            topLevelControlsPerDepth[parent]!.delete(this);
+    
+        attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
         }
-        else if (typeof parent === 'object' && parent[childrenTag] !== undefined) {
-            const idx = parent[childrenTag].indexOf(this);
-            if (idx >= 0) parent[childrenTag].splice(idx, 1);
-        }
-    }
-
-    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
-    }
+    };
 }
+
+export const HtmlControlCore = makeHtmlControlCore(HTMLElement);
+export type HtmlControlCore = IHtmlControlCore;

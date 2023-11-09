@@ -1,5 +1,5 @@
 import { toTracked, hasListeners } from "../lib/dependency-tracking";
-import { BindableControl, bindable } from "../lib/bindable-control";
+import { BindableControl, bindable, setOrRemoveAttribute } from "../lib/bindable-control";
 import { createNewElementName, postEvent, ensureEvent, throwIfHasEvents } from './unit-test-interfaces'
 
 @bindable('testProperty')
@@ -13,7 +13,7 @@ class BasicControl extends BindableControl {
     set testProperty(val: any) {
         if (this.#testProperty === val) return;
         this.#testProperty = val;
-        this.setAmbientProperty('testProperty');
+        this.notifyAmbientPropertySetExplicitly('testProperty');
     }
 
     get testPropertyBinding() {
@@ -23,11 +23,12 @@ class BasicControl extends BindableControl {
     set testPropertyBinding(val: string | null) {
         if (val === this.testPropertyBinding) return;
 
-        this.setOrRemoveAttribute('test-property', val);
+        setOrRemoveAttribute(this, 'test-property', val);
     }
 
-    protected override onPropertyChanged(property: string): void {
+    override onPropertyChanged(property: string): void {
         postEvent(this, 'onPropertyChanged: ' + property);
+        super.onPropertyChanged(property);
     }
 }
 

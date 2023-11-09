@@ -1,28 +1,20 @@
-import { setOrRemoveAttribute } from "./bindable-control";
 import { HtmlControlProperty, HtmlInputControl } from "./html-control";
 
-export class TextInput extends HtmlInputControl  implements HtmlControlProperty<'text', string | undefined> {
-    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text'];
-    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text'];
+export class TextInput extends HtmlInputControl implements HtmlControlProperty<'text', string | undefined>, HtmlControlProperty<'hint', string | undefined> {
+    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text', 'hint'];
+    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text', 'hint'];
 
-    #text?: string;
+    constructor() {
+        super();
+        this.addEventListener('input', TextInput.#onInput);
+    }
 
     get text() {
-        return this.getProperty('text', this.#text);
+        return this.getProperty<string | undefined>('text', undefined);
     }
 
-    set text(val: string | undefined) {
-        if (this.#text === val) return;
-        this.#text = val;
-        this.notifyPropertySetExplicitly('text');
-    }
-
-    get textBinding() {
-        return this.getAttribute('text');
-    }
-
-    get textIsExplicit() {
-        return true;
+    get acceptsInheritedText() {
+        return false;
     }
 
     onTextChanged() {
@@ -39,27 +31,34 @@ export class TextInput extends HtmlInputControl  implements HtmlControlProperty<
         }
     }
 
-    set textBinding(val: string | null) {
-        if (val === this.textBinding) return;
-        setOrRemoveAttribute(this, 'text', val);
+    get hint() {
+        return this.getProperty<string | undefined>('hint', undefined);
     }
 
-    #onInputImpl(ev: Event) {
+    get acceptsInheritedHint() {
+        return false;
+    }
+
+    onHintChanged() {
+        if (!this.isPartOfDom) return;
+
+        try {
+            const hint = this.hint;
+            this.placeholder = typeof hint === 'string' ? hint :
+                hint == null ? '' :
+                'typeof hint !== string';
+        }
+        catch (err) {
+            this.value = '' + err;
+        }
+    }
+
+    #onInputImpl() {
         this.writeToBindingSource('text', this.value);
     }
 
     static #onInput(ev: Event) {
-        (ev.currentTarget as TextInput).#onInputImpl(ev);
-    }
-
-    override onConnectedToDom(): void {
-        this.addEventListener('input', TextInput.#onInput);
-        super.onConnectedToDom();
-    }
-
-    override onDisconnectedFromDom(): void {
-        this.removeEventListener('input', TextInput.#onInput);
-        super.onDisconnectedFromDom();
+        (ev.currentTarget as TextInput).#onInputImpl();
     }
 }
 

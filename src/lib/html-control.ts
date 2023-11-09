@@ -30,24 +30,17 @@ export interface IHtmlControl extends IBindableControl, HtmlControlProperty<'add
 export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new () => IHtmlControl) & { observedAttributes: string[]; bindableProperties: string[]; } {
     return class HtmlControl extends BaseClass implements IHtmlControl {
         readonly #scheduledEvaluations = new Map<string, number>();
-        #additionalClasses?: string;
         #lastKnownAdditionalClasses?: string
 
         static observedAttributes = [...BindableControl.observedAttributes, 'additionalClasses', 'on-click'];
         static bindableProperties = [...BindableControl.bindableProperties, 'additionalClasses'];
 
         get additionalClasses() {
-            return this.getProperty('additionalClasses', this.#additionalClasses);
+            return this.getProperty<string | undefined>('additionalClasses', undefined);
         }
 
-        set additionalClasses(val: string | undefined) {
-            if (this.#additionalClasses === val) return;
-            this.#additionalClasses = val;
-            this.notifyPropertySetExplicitly('additionalClasses');
-        }
-
-        get additionalClassesIsExplicit() {
-            return this.#additionalClasses !== undefined;
+        get acceptsInheritedAdditionalClasses() {
+            return false;
         }
 
         onAdditionalClassesChanged() {

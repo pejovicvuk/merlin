@@ -24,38 +24,37 @@ interface AncestorsKey {};
 
 const ancestorsKey: AncestorsKey = {};
 
-function isExplicit<T extends object>(obj: T, isExplicitName: string) {
-    return (obj as Record<string, any>)[isExplicitName] === true;
+function acceptsInherited<T extends object>(obj: T, acceptsInheritedPropertyName: string) {
+    return (obj as Record<string, any>)[acceptsInheritedPropertyName] === true;
 }
 
-const isExplicitNameMap = new Map<string, string>();
+const acceptsInheritedPropertyNameMap = new Map<string, string>();
 
-function getIsExplicitName(name: string) {
-    let ret = isExplicitNameMap.get(name);
+function getAcceptsInheritedPropertyName(name: string) {
+    let ret = acceptsInheritedPropertyNameMap.get(name);
     if (ret === undefined) {
-        ret = name + 'IsExplicit';
-        isExplicitNameMap.set(name, ret);
+        ret = 'acceptsInherited' + name[0].toUpperCase() + name.slice(1);
+        acceptsInheritedPropertyNameMap.set(name, ret);
     }
     return ret;
 }
 
-function propagatePropertyChangeInternal(element: IHtmlControlCore, name: string, isExplicitName: string, attributeName: string) {
+function propagatePropertyChangeInternal(element: IHtmlControlCore, name: string, acceptsInheritedPropertyName: string, attributeName: string) {
     for (const child of element.childControls) {
-        if ((child as Record<string, any>)[isExplicitName] === true) continue;
-        if (isExplicit(child, isExplicitName) || child.hasAttribute(attributeName)) continue;
+        if (!acceptsInherited(child, acceptsInheritedPropertyName) || child.hasAttribute(attributeName)) continue;
         
         if (name in child && 'onChanged' in child && typeof child.onChanged === 'function') {
             child.onChanged(name);
         }
 
-        propagatePropertyChangeInternal(child, name, isExplicitName, attributeName);
+        propagatePropertyChangeInternal(child, name, acceptsInheritedPropertyName, attributeName);
     }
 }
 
 function propagatePropertyChange(element: IHtmlControlCore, name: string) {
     if (!element.isPartOfDom) return;
 
-    propagatePropertyChangeInternal(element, name, getIsExplicitName(name), propertyNameToAttributeName(name));
+    propagatePropertyChangeInternal(element, name, getAcceptsInheritedPropertyName(name), propertyNameToAttributeName(name));
 }
 
 export function bindable(...properties: string[]) {
@@ -99,12 +98,12 @@ export function setOrRemoveAttribute(element: Element, qualifiedName: string, va
 export type IBindableControlProperty<T extends string, R> = {
     [_ in T]: R;
 } & {
-    readonly [_ in `${T}IsExplicit`]: boolean;
+    readonly [_ in `acceptsInherited${Capitalize<T>}`]: boolean;
 };
 
 export interface IBindableControl extends IChangeTracker, IHtmlControlCore, IBindableControlProperty<'context', any> {
     onPropertyChanged(property: string): void;
-    getProperty<T>(name: string, explicitVal: T): T | undefined;
+    getProperty<T>(name: string, explicitVal?: T): T | undefined;
     getAmbientProperty<T>(name: string, explicitVal: T): T | undefined;
     notifyPropertySetExplicitly(name: string): void;
     notifyAmbientPropertySetExplicitly(name: string): void;
@@ -274,13 +273,11 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
     
             const camel = dashToCamel(name);
     
-            if (!isExplicit(this, getIsExplicitName(camel))) {
-                this.#clearBindingCache(camel);
-                this.#notifyListeners(camel);
-            }
+            this.#clearBindingCache(camel);
+            this.#notifyListeners(camel);
         }
     
-        getProperty<T>(name: string, explicitVal: T): T | undefined {
+        getProperty<T>(name: string, explicitVal?: T): T | undefined {
             registerAccess(this, name);
     
             if (explicitVal !== undefined) {
@@ -341,8 +338,8 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
             this.notifyAmbientPropertySetExplicitly('context');
         }
     
-        get contextIsExplicit() {
-            return this.#context !== undefined;
+        get acceptsInheritedContext() {
+            return this.#context === undefined;
         }
 
         writeToBindingSource<T>(property: string, val: T): boolean {

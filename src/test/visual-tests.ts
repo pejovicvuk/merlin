@@ -5,6 +5,8 @@ import '../lib/register-controls';
 class TextModel {
     text = "";
 
+    readonly hint = "Enter text";
+
     get classes() {
         return (this.text.length & 1) === 0 ? 'odd' : 'even';
     }

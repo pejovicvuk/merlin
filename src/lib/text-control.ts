@@ -1,4 +1,3 @@
-import { setOrRemoveAttribute } from "./bindable-control";
 import { HtmlControl, HtmlControlProperty } from "./html-control";
 
 export class TextControl extends HtmlControl implements HtmlControlProperty<'text', any> {
@@ -10,24 +9,12 @@ export class TextControl extends HtmlControl implements HtmlControlProperty<'tex
         this.attachShadow({mode: "open"});
     }
 
-    #text?: any;
-
     get text() {
-        return this.getProperty('text', this.#text);
+        return this.getProperty<string | undefined>('text', undefined);
     }
 
-    set text(val: any) {
-        if (this.#text === val) return;
-        this.#text = val;
-        this.notifyPropertySetExplicitly('text');
-    }
-
-    get textBinding() {
-        return this.getAttribute('text');
-    }
-
-    get textIsExplicit() {
-        return true;
+    get acceptsInheritedText() {
+        return false;
     }
 
     onTextChanged() {
@@ -43,11 +30,6 @@ export class TextControl extends HtmlControl implements HtmlControlProperty<'tex
         catch (err) {
             this.shadowRoot!.textContent = '' + err;
         }
-    }
-
-    set textBinding(val: string | null) {
-        if (val === this.textBinding) return;
-        setOrRemoveAttribute(this, 'text', val);
     }
 }
 

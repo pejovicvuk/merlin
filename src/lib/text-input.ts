@@ -1,4 +1,4 @@
-import { HtmlControlProperty, HtmlInputControl } from "./html-control";
+import { HtmlControlProperty, HtmlInputControl, copyPropertyConverted } from "./html-control";
 
 function stringOrNumberToString(val: string | number | undefined): string {
     return typeof val === 'string' ? val :
@@ -6,15 +6,20 @@ function stringOrNumberToString(val: string | number | undefined): string {
         '';
 }
 
+function toStringOrError(text: string | undefined): string {
+    return typeof text === 'string' ? text : 'typeof text === ' + typeof text;
+}
+
 export class TextInput extends HtmlInputControl implements
     HtmlControlProperty<'text', string | undefined>,
     HtmlControlProperty<'hint', string | undefined>,
     HtmlControlProperty<'minValue', string | number | undefined>,
     HtmlControlProperty<'maxValue', string | number | undefined>,
+    HtmlControlProperty<'stepValue', string | number | undefined>,
     HtmlControlProperty<'customValidity', string | undefined> {
 
-    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text', 'hint', 'customValidity', 'minValue', 'maxValue'];
-    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text', 'hint', 'custom-validity', 'min-value', 'max-value', 'is-valid'];
+    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text', 'hint', 'customValidity', 'minValue', 'maxValue', 'stepValue'];
+    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text', 'hint', 'custom-validity', 'min-value', 'max-value', 'step-value', 'is-valid'];
 
     constructor() {
         super();
@@ -28,18 +33,7 @@ export class TextInput extends HtmlInputControl implements
     readonly acceptsInheritedText = false;
 
     onTextChanged() {
-        if (!this.isPartOfDom) return;
-
-        try {
-            const text = this.text;
-            this.value = typeof text === 'string' ? text :
-                text == null ? '' :
-                'typeof text !== string';
-        }
-        catch (err) {
-            this.value = '' + err;
-        }
-
+        copyPropertyConverted(this, 'value', 'text', '', toStringOrError);
         this.#checkValidity();
     }
 
@@ -50,17 +44,7 @@ export class TextInput extends HtmlInputControl implements
     readonly acceptsInheritedHint = false;
 
     onHintChanged() {
-        if (!this.isPartOfDom) return;
-
-        try {
-            const hint = this.hint;
-            this.placeholder = typeof hint === 'string' ? hint :
-                hint == null ? '' :
-                'typeof hint !== string';
-        }
-        catch (err) {
-            this.placeholder = '' + err;
-        }
+        copyPropertyConverted(this, 'value', 'text', '',toStringOrError);
     }
 
     get minValue() {
@@ -70,15 +54,7 @@ export class TextInput extends HtmlInputControl implements
     readonly acceptsInheritedMinValue = false;
 
     onMinValueChanged() {
-        if (!this.isPartOfDom) return;
-
-        try {
-            this.min = stringOrNumberToString(this.minValue);
-        }
-        catch(err) {
-            this.min = '';
-        }
-
+        copyPropertyConverted(this, 'min', 'minValue', '', stringOrNumberToString);
         this.#checkValidity();
     }
 
@@ -89,15 +65,18 @@ export class TextInput extends HtmlInputControl implements
     readonly acceptsInheritedMaxValue = false;
 
     onMaxValueChanged() {
-        if (!this.isPartOfDom) return;
+        copyPropertyConverted(this, 'max', 'maxValue', '', stringOrNumberToString);
+        this.#checkValidity();
+    }
 
-        try {
-            this.max = stringOrNumberToString(this.maxValue);
-        }
-        catch(err) {
-            this.max = '';
-        }
+    get stepValue() {
+        return this.getProperty<string | number | undefined>('stepValue');
+    }
 
+    readonly acceptsInheritedStepValue = false;
+
+    onStepValueChanged() {
+        copyPropertyConverted(this, 'step', 'stepValue', '', stringOrNumberToString);
         this.#checkValidity();
     }
 

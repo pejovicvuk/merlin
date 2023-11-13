@@ -17,7 +17,7 @@ export class TextControl extends HtmlControl implements HtmlControlProperty<'tex
 
     onTextChanged() {
         try {
-            const text = (this.isPartOfDom ? '' + this.text : '').trim();
+            const text = '' + this.text;
             if (text === '') {
                 this.shadowRoot!.innerHTML = '&nbsp';
             }

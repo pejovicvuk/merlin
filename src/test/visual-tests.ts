@@ -83,6 +83,11 @@ class TextModel {
     get emailValidationMessage(){
         return this.isEmailValid ? 'good' : 'bad';
     }
+
+    // number
+
+    number = "10";
+    numberValid = false;
 }
 
 const textModel = toTracked(new TextModel());

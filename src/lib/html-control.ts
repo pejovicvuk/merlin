@@ -28,8 +28,6 @@ export interface IHtmlControl extends IBindableControl, HtmlControlProperty<'add
 }
 
 export function copyProperty<T extends IHtmlControl, Property extends keyof T, PropType extends T[Property]>(ctl: T, dst: Property, src: Property, errorVal: PropType) {
-    if (!ctl.isPartOfDom) return;
-
     try {
         ctl[dst] = ctl[src];
     }
@@ -39,8 +37,6 @@ export function copyProperty<T extends IHtmlControl, Property extends keyof T, P
 }
 
 export function copyPropertyConverted<T extends IHtmlControl, DestProperty extends keyof T, SrcProperty extends keyof T, PropType extends T[DestProperty]>(ctl: T, dst: DestProperty, src: SrcProperty, errorVal: PropType, convert: (val: T[SrcProperty]) => T[DestProperty]) {
-    if (!ctl.isPartOfDom) return;
-
     try {
         ctl[dst] = convert(ctl[src]);
     }

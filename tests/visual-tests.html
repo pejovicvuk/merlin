@@ -71,6 +71,9 @@
                 Month <input is="text-input" type="month" text="this.month"> read as: <text-control text="this.month"></text-control>
             </div>
 
+            <h2>Number</h2>
+            Enter number from 0 to 10: <input is="text-input" type="number" size="20" text="this.number" min-value="0" max-value="10" step-value="2" is-valid="this.numberValid"> Valid: <text-control text="this.numberValid"></text-control>
+
             <h2>Validity</h2>
             Enter email: <input is="text-input" type="text" size="20" text="this.email" custom-validity="this.emailCustomValidity" is-valid="this.isEmailValid"> Valid: <text-control text="this.emailValidationMessage"></text-control>
         </context-control>

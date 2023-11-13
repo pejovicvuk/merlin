@@ -9,7 +9,7 @@
                 background-color: lightblue;
             }
             .even {
-                background-color: lightpink;
+                background-color: rgb(167, 223, 167);
             }
             .form {
                 display: grid;
@@ -32,8 +32,8 @@
             .picker > input {
                 min-width: 10em;
             }
-            .picker > input:invalid {
-                background: rgba(255, 182, 193, 0.243);
+            input:invalid {
+                background: lightpink;
             }
         </style>
     </head>
@@ -62,7 +62,7 @@
                 Time <input is="text-input" type="time" text="this.time" required> read as: <text-control text="this.time"></text-control>
             </div>
             <div class="picker">
-                Date <input is="text-input" type="date" text="this.date"> read as: <text-control text="this.date"></text-control>
+                Date <input is="text-input" type="date" text="this.date" min-value="this.minDate" max-value="this.maxDate" is-valid="this.isDateValid"> read as: <text-control text="this.dateCheck"></text-control>
             </div>
             <div class="picker">
                 Color <input is="text-input" type="color" text="this.color"> read as: <text-control text="this.color"></text-control>
@@ -72,7 +72,7 @@
             </div>
 
             <h2>Validity</h2>
-            Enter email: <input is="text-input" type="text" size="20">
+            Enter email: <input is="text-input" type="text" size="20" text="this.email" custom-validity="this.emailCustomValidity" is-valid="this.isEmailValid"> Valid: <text-control text="this.emailValidationMessage"></text-control>
         </context-control>
 
         <script type="module" src="../dist/test/visual-tests"></script>

@@ -3,7 +3,6 @@ import { HtmlControl } from '../lib/html-control';
 import '../lib/register-controls';
 
 class TextModel {
-
     // check boxes
 
     red = true;
@@ -60,6 +59,30 @@ class TextModel {
     date = "";
     color = "";
     month = "";
+
+    readonly minDate = "2020-01-01";
+    readonly maxDate = "2030-01-01";
+
+    isDateValid = false;
+
+    get dateCheck() {
+        return this.isDateValid ? this.date : "invalid";
+    }
+
+    // validity text
+
+    email = 'bad';
+
+    get emailCustomValidity() {
+        const at = this.email.indexOf('@');
+        return at <= 0 || at + 1 == this.email.length ? 'Must enter email' : undefined;
+    }
+
+    isEmailValid = false;
+
+    get emailValidationMessage(){
+        return this.isEmailValid ? 'good' : 'bad';
+    }
 }
 
 const textModel = toTracked(new TextModel());

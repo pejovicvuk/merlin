@@ -95,13 +95,13 @@ export function setOrRemoveAttribute(element: Element, qualifiedName: string, va
     }
 }
 
-export type IBindableControlProperty<T extends string, R> = {
+export type BindableProperty<T extends string, R> = {
     [_ in T]: R;
 } & {
     readonly [_ in `acceptsInherited${Capitalize<T>}`]: boolean;
 };
 
-export interface IBindableControl extends IChangeTracker, IHtmlControlCore, IBindableControlProperty<'context', any> {
+export interface IBindableControl extends IChangeTracker, IHtmlControlCore, BindableProperty<'context', any> {
     onPropertyChanged(property: string): void;
     getProperty<T>(name: string, explicitVal?: T): T | undefined;
     getAmbientProperty<T>(name: string, explicitVal: T): T | undefined;
@@ -157,12 +157,12 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
                 this.#bindingValues?.clear();
                 this.#bindingExceptions?.clear();
     
-                for (const prop of ctor.bindableProperties) {
-                    this.#notifyListeners(prop);
-                }
+                // for (const prop of ctor.bindableProperties) {
+                //     this.#notifyListeners(prop);
+                // }
             }
     
-            this.#notifyListeners(ancestorsKey);
+            // this.#notifyListeners(ancestorsKey);
         }
     
         #evaluateBinding(name: string) {

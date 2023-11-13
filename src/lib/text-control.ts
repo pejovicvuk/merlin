@@ -13,9 +13,7 @@ export class TextControl extends HtmlControl implements HtmlControlProperty<'tex
         return this.getProperty<string | undefined>('text', undefined);
     }
 
-    get acceptsInheritedText() {
-        return false;
-    }
+    readonly acceptsInheritedText = false;
 
     onTextChanged() {
         try {

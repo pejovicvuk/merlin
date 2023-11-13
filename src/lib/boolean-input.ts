@@ -13,9 +13,7 @@ export class BooleanInput extends HtmlInputControl implements HtmlControlPropert
         return this.getProperty<string | undefined>('checkedValue', undefined);
     }
 
-    get acceptsInheritedCheckedValue() {
-        return false;
-    }
+    readonly acceptsInheritedCheckedValue = false;
 
     onCheckedValueChanged() {
         if (!this.isPartOfDom) return;

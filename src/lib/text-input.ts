@@ -1,8 +1,20 @@
 import { HtmlControlProperty, HtmlInputControl } from "./html-control";
 
-export class TextInput extends HtmlInputControl implements HtmlControlProperty<'text', string | undefined>, HtmlControlProperty<'hint', string | undefined> {
-    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text', 'hint'];
-    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text', 'hint'];
+function stringOrNumberToString(val: string | number | undefined): string {
+    return typeof val === 'string' ? val :
+        typeof val === 'number' ? val.toString():
+        '';
+}
+
+export class TextInput extends HtmlInputControl implements
+    HtmlControlProperty<'text', string | undefined>,
+    HtmlControlProperty<'hint', string | undefined>,
+    HtmlControlProperty<'minValue', string | number | undefined>,
+    HtmlControlProperty<'maxValue', string | number | undefined>,
+    HtmlControlProperty<'customValidity', string | undefined> {
+
+    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text', 'hint', 'customValidity', 'minValue', 'maxValue'];
+    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text', 'hint', 'custom-validity', 'min-value', 'max-value', 'is-valid'];
 
     constructor() {
         super();
@@ -10,12 +22,10 @@ export class TextInput extends HtmlInputControl implements HtmlControlProperty<'
     }
 
     get text() {
-        return this.getProperty<string | undefined>('text', undefined);
+        return this.getProperty<string | undefined>('text');
     }
 
-    get acceptsInheritedText() {
-        return false;
-    }
+    readonly acceptsInheritedText = false;
 
     onTextChanged() {
         if (!this.isPartOfDom) return;
@@ -29,15 +39,15 @@ export class TextInput extends HtmlInputControl implements HtmlControlProperty<'
         catch (err) {
             this.value = '' + err;
         }
+
+        this.#checkValidity();
     }
 
     get hint() {
         return this.getProperty<string | undefined>('hint', undefined);
     }
 
-    get acceptsInheritedHint() {
-        return false;
-    }
+    readonly acceptsInheritedHint = false;
 
     onHintChanged() {
         if (!this.isPartOfDom) return;
@@ -53,13 +63,77 @@ export class TextInput extends HtmlInputControl implements HtmlControlProperty<'
         }
     }
 
+    get minValue() {
+        return this.getProperty<string | number | undefined>('minValue');
+    }
+
+    readonly acceptsInheritedMinValue = false;
+
+    onMinValueChanged() {
+        if (!this.isPartOfDom) return;
+
+        try {
+            this.min = stringOrNumberToString(this.minValue);
+        }
+        catch(err) {
+            this.min = '';
+        }
+
+        this.#checkValidity();
+    }
+
+    get maxValue() {
+        return this.getProperty<string | number | undefined>('maxValue');
+    }
+
+    readonly acceptsInheritedMaxValue = false;
+
+    onMaxValueChanged() {
+        if (!this.isPartOfDom) return;
+
+        try {
+            this.max = stringOrNumberToString(this.maxValue);
+        }
+        catch(err) {
+            this.max = '';
+        }
+
+        this.#checkValidity();
+    }
+
+    get customValidity() {
+        return this.getProperty<string | undefined>('customValidity', undefined);
+    }
+
+    readonly acceptsInheritedCustomValidity = false;
+
+    onCustomValidityChanged() {
+        this.#checkValidity();
+    }
+
+    #checkValidity() {
+        const customError = this.customValidity;
+        this.setCustomValidity(typeof customError === 'string' ? customError : '');
+        this.checkValidity();
+        this.writeToBindingSourceByAttribute('is-valid', this.validity.valid);
+    }
+
     #onInputImpl() {
         this.writeToBindingSource('text', this.value);
-        this.writeToBindingSourceByAttribute('is-valid', this.checkValidity());
+        this.#checkValidity();
     }
 
     static #onInput(ev: Event) {
         (ev.currentTarget as TextInput).#onInputImpl();
+    }
+
+    override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+        if (name === 'is-valid') {
+            this.#checkValidity();
+        }
+        else {
+            super.attributeChangedCallback(name, oldValue, newValue);
+        }
     }
 }
 

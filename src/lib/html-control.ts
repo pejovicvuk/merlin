@@ -1,4 +1,4 @@
-import { BindableControl, IBindableControlProperty, IBindableControl, makeBindableControl } from "./bindable-control";
+import { BindableControl, BindableProperty, IBindableControl, makeBindableControl } from "./bindable-control";
 import { makeHtmlControlCore } from "./html-control-core";
 import { cancelTaskExecution, enqueTask } from "./task-queue";
 
@@ -9,7 +9,7 @@ function clickHandler(ev: MouseEvent) {
     (((ev.currentTarget as any)[click]) as undefined | ((ev: MouseEvent) => void))?.(ev);
 }
 
-export type HtmlControlProperty<T extends string, R> = IBindableControlProperty<T, R> & {
+export type HtmlControlProperty<T extends string, R> = BindableProperty<T, R> & {
     readonly [_ in `on${Capitalize<T>}Changed`]: () => void;
 };
 
@@ -27,6 +27,29 @@ function getChangedHanlderName(property: string) {
 export interface IHtmlControl extends IBindableControl, HtmlControlProperty<'additionalClasses', string | undefined> {
 }
 
+export function copyProperty<T extends IHtmlControl, Property extends keyof T, PropType extends T[Property]>(ctl: T, dst: Property, src: Property, errorVal: PropType) {
+    if (!ctl.isPartOfDom) return;
+
+    try {
+        ctl[dst] = ctl[src];
+    }
+    catch (err) {
+        ctl[dst] = errorVal;
+    }
+}
+
+export function copyPropertyConverted<T extends IHtmlControl, DestProperty extends keyof T, SrcProperty extends keyof T, PropType extends T[DestProperty]>(ctl: T, dst: DestProperty, src: SrcProperty, errorVal: PropType, convert: (val: T[SrcProperty]) => T[DestProperty]) {
+    if (!ctl.isPartOfDom) return;
+
+    try {
+        ctl[dst] = convert(ctl[src]);
+    }
+    catch (err) {
+        ctl[dst] = errorVal;
+    }
+
+}
+
 export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new () => IHtmlControl) & { observedAttributes: string[]; bindableProperties: string[]; } {
     return class HtmlControl extends BaseClass implements IHtmlControl {
         readonly #scheduledEvaluations = new Map<string, number>();
@@ -39,9 +62,7 @@ export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new (
             return this.getProperty<string | undefined>('additionalClasses', undefined);
         }
 
-        get acceptsInheritedAdditionalClasses() {
-            return false;
-        }
+        readonly acceptsInheritedAdditionalClasses = false;
 
         onAdditionalClassesChanged() {
             let additionalClasses: string | undefined = undefined;
@@ -97,20 +118,13 @@ export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new (
         }
 
         override onDisconnectedFromDom(): void {
-            for (const [property, taskId] of this.#scheduledEvaluations.entries()) {
+            for (const taskId of this.#scheduledEvaluations.values()) {
                 cancelTaskExecution(taskId);
-                const handler = (this as Record<string, any>)[getChangedHanlderName(property)];
-                if (typeof handler === 'function') {
-                    try {
-                        handler.call(this);
-                    }
-                    catch(err) {
-                        console.log(err);
-                    }
-                }
             }
 
             this.#scheduledEvaluations.clear();
+
+            super.onDisconnectedFromDom();
         }
 
         [click](ev: MouseEvent): void {

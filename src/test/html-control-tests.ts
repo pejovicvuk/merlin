@@ -57,8 +57,10 @@ export function testBasicControl(playground: HTMLDivElement) {
     
     if (ctl.testProperty !== 7) throw new Error('Expected testProperty === 7.');
     playground.innerHTML = '';
-    ensureEvent(ctl, 'onPropertyChanged: context');
-    ensureEvent(ctl, 'onPropertyChanged: testProperty');
+
+    // we used to notify on disconnected, but the more I think the less it's needed so keeping mum for now
+    throwIfHasEvents();
+
     if (ctl.testProperty !== undefined) throw new Error('Expected undefined.');
     return undefined;
 }
@@ -119,8 +121,19 @@ export function testContext(playground: HTMLDivElement) {
     
     playground.innerHTML = '';
     ensureEvent(model, 'HasListeners: false');
-    ensureEvent(child, 'onPropertyChanged: context');
-    ensureEvent(child, 'onPropertyChanged: testProperty');
+
+    // we used to notify on disconnected, but the more I think the less it's needed so keeping mum for now
+    throwIfHasEvents();
+    // ensureEvent(child, 'onPropertyChanged: context');
+    // ensureEvent(child, 'onPropertyChanged: testProperty');
+    // ensureEvent(parent, 'onPropertyChanged: context');
+    // ensureEvent(parent, 'onPropertyChanged: testProperty');
+
+    playground.appendChild(parent);
     ensureEvent(parent, 'onPropertyChanged: context');
     ensureEvent(parent, 'onPropertyChanged: testProperty');
+    ensureEvent(child, 'onPropertyChanged: context');
+    ensureEvent(child, 'onPropertyChanged: testProperty');
+    playground.innerHTML = '';
+    throwIfHasEvents();
 }

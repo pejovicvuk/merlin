@@ -92,5 +92,5 @@ class TextModel {
 
 const textModel = toTracked(new TextModel());
 
-const contextControl = document.getElementById('context') as HtmlControl
-contextControl.context = textModel;
+const modelControl = document.getElementById('model') as HtmlControl
+modelControl.model = textModel;

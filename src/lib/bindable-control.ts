@@ -101,7 +101,7 @@ export type BindableProperty<T extends string, R> = {
     readonly [_ in `acceptsInherited${Capitalize<T>}`]: boolean;
 };
 
-export interface IBindableControl extends IChangeTracker, IHtmlControlCore, BindableProperty<'context', any> {
+export interface IBindableControl extends IChangeTracker, IHtmlControlCore, BindableProperty<'model', any> {
     onPropertyChanged(property: string): void;
     getProperty<T>(name: string, explicitVal?: T): T | undefined;
     getAmbientProperty<T>(name: string, explicitVal: T): T | undefined;
@@ -117,10 +117,10 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
         #bindingValues?: Map<string, any>;
         #bindingExceptions?: Map<string, any>;
         #listeners?: any []; // we pack listeners in triples for efficiency, (key, listener, token)
-        #context?: any;
+        #model?: any;
     
-        static observedAttributes = ['context'];
-        static bindableProperties = ['context'];
+        static observedAttributes = ['model'];
+        static bindableProperties = ['model'];
     
         override onConnectedToDom(): void {
             super.onConnectedToDom();
@@ -194,7 +194,7 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
             startEvalScope(dependencies);
     
             try {
-                const thisVal = name === 'context' ? undefined : this.context;
+                const thisVal = name === 'model' ? undefined : this.model;
     
                 const val = evalTrackedScoped(attr, thisVal);
                 this.#bindingExceptions?.delete(name);
@@ -329,18 +329,18 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
             propagatePropertyChange(this, name);
         }
     
-        get context() {
-            return this.getAmbientProperty('context', this.#context);
+        get model() {
+            return this.getAmbientProperty('model', this.#model);
         }
     
-        set context(val: any) {
-            if (this.#context === val) return;
-            this.#context = val;
-            this.notifyAmbientPropertySetExplicitly('context');
+        set model(val: any) {
+            if (this.#model === val) return;
+            this.#model = val;
+            this.notifyAmbientPropertySetExplicitly('model');
         }
     
-        get acceptsInheritedContext() {
-            return this.#context === undefined;
+        get acceptsInheritedModel() {
+            return this.#model === undefined;
         }
 
         writeToBindingSource<T>(property: string, val: T): boolean {
@@ -354,7 +354,7 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
 
             if (!expression.startsWith('this.')) return false;
 
-            let obj = this.context;
+            let obj = this.model;
             if (obj == null) return false;
 
             if (typeof obj !== 'object') return false;

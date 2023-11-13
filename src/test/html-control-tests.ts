@@ -38,7 +38,7 @@ export function testBasicControl(playground: HTMLDivElement) {
 
     const ctl = document.createElement(name) as BasicControl;
     playground.appendChild(ctl);
-    ensureEvent(ctl, 'onPropertyChanged: context');
+    ensureEvent(ctl, 'onPropertyChanged: model');
     ensureEvent(ctl, 'onPropertyChanged: testProperty');
 
     throwIfHasEvents();
@@ -85,7 +85,7 @@ class Model {
     }
 }
 
-export function testContext(playground: HTMLDivElement) {
+export function testModel(playground: HTMLDivElement) {
     const parentName = createNewElementName();
     customElements.define(parentName, ParentControl);
     const childName = createNewElementName();
@@ -97,14 +97,14 @@ export function testContext(playground: HTMLDivElement) {
     parent.appendChild(child);
 
     const model = toTracked(new Model());
-    parent.context = model;
+    parent.model = model;
 
     throwIfHasEvents();
 
     playground.appendChild(parent);
-    ensureEvent(parent, 'onPropertyChanged: context');
+    ensureEvent(parent, 'onPropertyChanged: model');
     ensureEvent(parent, 'onPropertyChanged: testProperty');
-    ensureEvent(child, 'onPropertyChanged: context');
+    ensureEvent(child, 'onPropertyChanged: model');
     ensureEvent(child, 'onPropertyChanged: testProperty');
 
     throwIfHasEvents();
@@ -124,15 +124,15 @@ export function testContext(playground: HTMLDivElement) {
 
     // we used to notify on disconnected, but the more I think the less it's needed so keeping mum for now
     throwIfHasEvents();
-    // ensureEvent(child, 'onPropertyChanged: context');
+    // ensureEvent(child, 'onPropertyChanged: model');
     // ensureEvent(child, 'onPropertyChanged: testProperty');
-    // ensureEvent(parent, 'onPropertyChanged: context');
+    // ensureEvent(parent, 'onPropertyChanged: model');
     // ensureEvent(parent, 'onPropertyChanged: testProperty');
 
     playground.appendChild(parent);
-    ensureEvent(parent, 'onPropertyChanged: context');
+    ensureEvent(parent, 'onPropertyChanged: model');
     ensureEvent(parent, 'onPropertyChanged: testProperty');
-    ensureEvent(child, 'onPropertyChanged: context');
+    ensureEvent(child, 'onPropertyChanged: model');
     ensureEvent(child, 'onPropertyChanged: testProperty');
     playground.innerHTML = '';
     throwIfHasEvents();

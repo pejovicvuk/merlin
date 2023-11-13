@@ -1,5 +1,5 @@
 import { registerParentAndChild, registerParentThenChild, registerChildThenParent, registerGrandparentAndChildThenParent } from './html-control-core-tests';
-import { testBasicControl, testContext } from './html-control-tests';
+import { testBasicControl, testModel } from './html-control-tests';
 import { throwIfHasEvents } from './unit-test-interfaces';
 
 const results = document.getElementById('results') as HTMLDivElement;
@@ -39,7 +39,7 @@ runTest('Register parent then child.', registerParentThenChild);
 runTest('Register child then parent.', registerChildThenParent);
 runTest('Register grandparent and child then parent', registerGrandparentAndChildThenParent);
 runTest('Basic control', testBasicControl);
-runTest('Control context', testContext);
+runTest('Control model', testModel);
 
 const done = document.createElement('div');
 done.innerText = 'Done.'

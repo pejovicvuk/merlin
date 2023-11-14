@@ -2,12 +2,29 @@ import { BindableControl, BindableProperty, IBindableControl, makeBindableContro
 import { makeHtmlControlCore } from "./html-control-core";
 import { cancelTaskExecution, enqueTask } from "./task-queue";
 
-const click: unique symbol = Symbol("click");
+function callHandler(event: Event, type: string) {
+    if (event.currentTarget === null) return;
+    const element = event.currentTarget as HtmlControl;
+    const attr = element.getAttribute(type);
+    if (attr === null) return;
+    const model = element.model;
 
-function clickHandler(ev: MouseEvent) {
-    if (ev.currentTarget === null) return;
-    (((ev.currentTarget as any)[click]) as undefined | ((ev: MouseEvent) => void))?.(ev);
+    const func = Function("element", "event", "self", "window", "globals", "console", "top", `"use strict";return (${attr});`);
+    func.call(model, element, event);
 }
+
+const events = [
+    "animationcancel", "animationend", "animationiteration", "animationstart", "afterscriptexecute", "auxclick",
+    "beforescriptexecute", "blur", "click", "compositionend", "compositionstart", "compositionupdate", "contextmenu",
+    "copy", "cut", "dblclick", "error", "focusin", "focusout", "focus", "fullscreenchange", "fullscreenerror", "gesturechange",
+    "gestureend", "gesturestart", "gotpointercapture", "keydown", "keypress", "keyup", "lostpointercapture", "mousedown",
+    "mouseenter", "mouseleave", "mousemove", "mouseout", "mouseover", "mouseup", "mousewheel", "paste", "pointercancel",
+    "pointerdown", "pointerenter", "pointerleave", "pointermove", "pointerout", "pointerover", "pointerup", "scroll",
+    "select", "touchcancel", "touchend", "touchmove", "touchstart", "transitioncancel", "transitionend", "transitionrun",
+    "transitionstart", "wheel"
+];
+
+const eventsToEventHandlers = new Map(events.map(x => ['on-' + x, (ev: Event) => callHandler(ev, 'on-' + x)]));
 
 export type HtmlControlProperty<T extends string, R> = BindableProperty<T, R> & {
     readonly [_ in `on${Capitalize<T>}Changed`]: () => void;
@@ -123,18 +140,18 @@ export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new (
             super.onDisconnectedFromDom();
         }
 
-        [click](ev: MouseEvent): void {
-        }
-
         override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
             super.attributeChangedCallback(name, oldValue, newValue);
 
-            if (name === "on-click") {
+            const func = eventsToEventHandlers.get(name);
+            if (func !== undefined) {
+                const event = name.substring(3);
+
                 if (oldValue === null && newValue !== null) {
-                    this.addEventListener('click', clickHandler);
+                    this.addEventListener(event, func);
                 }
                 else if (oldValue !== null && newValue === null) {
-                    this.removeEventListener('click', clickHandler);
+                    this.removeEventListener(event, func);
                 }
             }
         }

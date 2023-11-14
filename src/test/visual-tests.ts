@@ -88,6 +88,10 @@ class TextModel {
 
     number = "10";
     numberValid = false;
+
+    clicked(ev: MouseEvent) {
+        alert(ev.button);
+    }
 }
 
 const textModel = toTracked(new TextModel());

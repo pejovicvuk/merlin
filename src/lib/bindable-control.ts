@@ -1,5 +1,5 @@
 import { indexOfTriplet } from "./algorithms";
-import { IChangeTracker, clearDependencies, startEvalScope, evalTrackedScoped, endEvalScope, registerAccess, addListener, removeListener } from "./dependency-tracking";
+import { IChangeTracker, clearDependencies, startEvalScope, endEvalScope, registerAccess, addListener, removeListener } from "./dependency-tracking";
 import { HtmlControlCore, IHtmlControlCore } from "./html-control-core";
 
 function stringToDashedLowercase(s: string) {
@@ -196,7 +196,9 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
             try {
                 const thisVal = name === 'model' ? undefined : this.model;
     
-                const val = evalTrackedScoped(attr, thisVal);
+                const func = Function("element", "self", "window", "globals", "console", "top", `"use strict";return (${attr});`);
+                const val = func.call(thisVal, this);
+            
                 this.#bindingExceptions?.delete(name);
                 if (this.#bindingValues === undefined) this.#bindingValues = new Map();
                 this.#bindingValues.set(name, val === undefined ? undefinedPlaceholder : undefined);

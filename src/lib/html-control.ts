@@ -41,7 +41,7 @@ function getChangedHanlderName(property: string) {
     return ret;
 }
 
-export interface IHtmlControl extends IBindableControl, HtmlControlProperty<'additionalClasses', string | undefined> {
+export interface IHtmlControl extends IBindableControl, HtmlControlProperty<'classes', string | undefined> {
 }
 
 export function copyProperty<T extends IHtmlControl, Property extends keyof T, PropType extends T[Property]>(ctl: T, dst: Property, src: Property, errorVal: PropType) {
@@ -66,33 +66,33 @@ export function copyPropertyConverted<T extends IHtmlControl, DestProperty exten
 export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new () => IHtmlControl) & { observedAttributes: string[]; bindableProperties: string[]; } {
     return class HtmlControl extends BaseClass implements IHtmlControl {
         readonly #scheduledEvaluations = new Map<string, number>();
-        #lastKnownAdditionalClasses?: string
+        #lastKnownClasses?: string
 
-        static observedAttributes = [...BindableControl.observedAttributes, 'additionalClasses', 'on-click'];
-        static bindableProperties = [...BindableControl.bindableProperties, 'additionalClasses'];
+        static observedAttributes = [...BindableControl.observedAttributes, 'classes', ...events];
+        static bindableProperties = [...BindableControl.bindableProperties, 'classes'];
 
-        get additionalClasses() {
-            return this.getProperty<string | undefined>('additionalClasses', undefined);
+        get classes() {
+            return this.getProperty<string | undefined>('classes', undefined);
         }
 
-        readonly acceptsInheritedAdditionalClasses = false;
+        readonly acceptsInheritedClasses = false;
 
-        onAdditionalClassesChanged() {
-            let additionalClasses: string | undefined = undefined;
+        onClassesChanged() {
+            let classes: string | undefined = undefined;
             if (this.isPartOfDom) {
                 try {
-                    const ac = this.additionalClasses;
-                    additionalClasses = typeof ac === 'string' ? ac : undefined;
+                    const ac = this.classes;
+                    classes = typeof ac === 'string' ? ac : undefined;
                 }
                 catch(err) {
                     console.log(err);
                 }
             }
 
-            if (this.#lastKnownAdditionalClasses === additionalClasses) return;
+            if (this.#lastKnownClasses === classes) return;
 
-            const oldClasses = this.#lastKnownAdditionalClasses?.split(/ +/);
-            const newClasses = additionalClasses?.split(/ +/);
+            const oldClasses = this.#lastKnownClasses?.split(/ +/);
+            const newClasses = classes?.split(/ +/);
 
             if (oldClasses !== undefined) {
                 for (const cls of oldClasses) {
@@ -109,7 +109,7 @@ export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new (
                 }
             }
 
-            this.#lastKnownAdditionalClasses = additionalClasses;
+            this.#lastKnownClasses = classes;
         }
 
         #evaluatePropertyCallbackImpl(property: string): void {

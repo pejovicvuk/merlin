@@ -35,23 +35,7 @@ class TextModel {
 
     // radio
 
-    option = 0;
-
-    get option1() {
-        return this.option === 0;
-    }
-
-    set option1(val: boolean) {
-        if (val) this.option = 0;
-    }
-
-    get option2() {
-        return this.option === 1;
-    }
-
-    set option2(val: boolean) {
-        if (val) this.option = 1;
-    }
+    radio = 0;
 
     // pickers
 

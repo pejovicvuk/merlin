@@ -1,6 +1,6 @@
 import { HtmlControl, HtmlControlProperty, HtmlInputControl } from "./html-control";
 
-export class BooleanInput extends HtmlControl implements
+export class CheckBox extends HtmlControl implements
     HtmlControlProperty<'checked', boolean | undefined> {
     static override observedAttributes = [...HtmlInputControl.observedAttributes, 'checked', 'type'];
     static override bindableProperties = [...HtmlInputControl.bindableProperties, 'checked'];
@@ -8,8 +8,8 @@ export class BooleanInput extends HtmlControl implements
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.shadowRoot!.innerHTML = '<input id="input" type="checkbox" part="input"><label for="input"><slot name="content"></slot></label>';
-        this.#input.addEventListener('change', BooleanInput.#onChange);
+        this.shadowRoot!.innerHTML = '<style>:host { display: inline-flex; align-items: baseline; } label { flex: 1 0 auto; }</style><input id="input" type="checkbox" part="input"><label for="input" part="label"><slot name="content"></slot></label>';
+        this.#input.addEventListener('change', CheckBox.#onChange);
     }
 
     get #input() {
@@ -23,8 +23,6 @@ export class BooleanInput extends HtmlControl implements
     readonly acceptsInheritedChecked = false;
 
     onCheckedChanged() {
-        if (!this.isPartOfDom) return;
-
         try {
             const checked = this.checked;
             if (typeof checked === 'boolean') {
@@ -45,7 +43,7 @@ export class BooleanInput extends HtmlControl implements
     }
 
     static #onChange(ev: Event) {
-        ((((ev.currentTarget as HTMLInputElement).parentNode) as ShadowRoot).host as BooleanInput).#onChangeImpl();
+        ((((ev.currentTarget as Element).parentNode) as ShadowRoot).host as CheckBox).#onChangeImpl();
     }
 
     override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {

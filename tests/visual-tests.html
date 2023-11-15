@@ -49,13 +49,15 @@
             </div>
             <h2>Checkboxes</h2>
 
-            <bool-input checked="this.redAndBlue"><span slot="content">Red and Blue</span></bool-input>
-            <bool-input checked="this.red"><span slot="content">Red</span></bool-input>
-            <bool-input checked="this.blue"><span slot="content">Blue</span></bool-input>
+            <div>
+                <check-box checked="this.redAndBlue"><span slot="content">Red and Blue</span></check-box>
+                <check-box checked="this.red"><span slot="content">Red</span></check-box>
+                <check-box checked="this.blue"><span slot="content">Blue</span></check-box>
+            </div>
 
             <h2>Radios</h2>
-            <bool-input type="radio" checked="this.option1"><span slot="content">Red</span></bool-input>
-            <bool-input type="radio" checked="this.option2"><span slot="content">Blue</span></bool-input>
+            <radio-button type="radio" value="this.radio" option="0"><span slot="content">Red</span></radio-button>
+            <radio-button type="radio" value="this.radio" option="1"><span slot="content">Blue</span></radio-button>
 
             <h2>Pickers</h2>
             <div class="picker">

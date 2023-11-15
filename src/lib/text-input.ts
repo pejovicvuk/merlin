@@ -1,29 +1,39 @@
-import { HtmlControlProperty, HtmlInputControl, copyPropertyConverted } from "./html-control";
+import { setOrRemoveAttribute } from "./bindable-control";
+import { HtmlControl, HtmlControlProperty, HtmlInputControl } from "./html-control";
 
-function stringOrNumberToString(val: string | number | undefined): string {
+function stringOrNumberToStringOrNull(val: string | number | undefined | null): string | null {
     return typeof val === 'string' ? val :
-        typeof val === 'number' ? val.toString():
+        typeof val === 'number' ? val.toString() :
+        val == null ? null :
         '';
 }
 
-function toStringOrError(text: string | undefined): string {
-    return typeof text === 'string' ? text : 'typeof text === ' + typeof text;
+function toStringOrErrorOrNull(text: string | undefined | null): string | null {
+    return typeof text === 'string' ? text :
+        text == null ? null:
+        'typeof text === ' + typeof text;
 }
 
-export class TextInput extends HtmlInputControl implements
+export class TextInput extends HtmlControl implements
     HtmlControlProperty<'text', string | undefined>,
     HtmlControlProperty<'hint', string | undefined>,
-    HtmlControlProperty<'minValue', string | number | undefined>,
-    HtmlControlProperty<'maxValue', string | number | undefined>,
-    HtmlControlProperty<'stepValue', string | number | undefined>,
+    HtmlControlProperty<'min', string | number | undefined>,
+    HtmlControlProperty<'max', string | number | undefined>,
+    HtmlControlProperty<'step', string | number | undefined>,
     HtmlControlProperty<'customValidity', string | undefined> {
 
-    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text', 'hint', 'customValidity', 'minValue', 'maxValue', 'stepValue'];
-    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text', 'hint', 'custom-validity', 'min-value', 'max-value', 'step-value', 'is-valid'];
+    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text', 'hint', 'customValidity', 'min', 'max', 'step'];
+    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text', 'hint', 'custom-validity', 'min', 'max', 'step', 'is-valid', 'type', 'required'];
 
     constructor() {
         super();
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot!.innerHTML = '<style>:host { display: inline-flex; flex-direction: column; }</style><input part="input">';
         this.addEventListener('input', TextInput.#onInput);
+    }
+
+    get #input() {
+        return this.shadowRoot!.querySelector('input') as HTMLInputElement;
     }
 
     get text() {
@@ -33,7 +43,12 @@ export class TextInput extends HtmlInputControl implements
     readonly acceptsInheritedText = false;
 
     onTextChanged() {
-        copyPropertyConverted(this, 'value', 'text', '', toStringOrError);
+        try {
+            this.#input.value = toStringOrErrorOrNull(this.text) ?? '';
+        }
+        catch {
+            this.#input.value = '';
+        }
         this.#checkValidity();
     }
 
@@ -44,39 +59,59 @@ export class TextInput extends HtmlInputControl implements
     readonly acceptsInheritedHint = false;
 
     onHintChanged() {
-        copyPropertyConverted(this, 'value', 'text', '',toStringOrError);
+        try {
+            setOrRemoveAttribute(this.#input, 'placeholder', toStringOrErrorOrNull(this.hint));
+        }
+        catch {
+            this.#input.removeAttribute('placeholder');
+        }
     }
 
-    get minValue() {
-        return this.getProperty<string | number | undefined>('minValue');
+    get min() {
+        return this.getProperty<string | number | undefined>('min');
     }
 
-    readonly acceptsInheritedMinValue = false;
+    readonly acceptsInheritedMin = false;
 
-    onMinValueChanged() {
-        copyPropertyConverted(this, 'min', 'minValue', '', stringOrNumberToString);
+    onMinChanged() {
+        try {
+            setOrRemoveAttribute(this.#input, 'min', stringOrNumberToStringOrNull(this.min));
+        }
+        catch {
+            this.#input.removeAttribute('min');
+        }
         this.#checkValidity();
     }
 
-    get maxValue() {
-        return this.getProperty<string | number | undefined>('maxValue');
+    get max() {
+        return this.getProperty<string | number | undefined>('max');
     }
 
-    readonly acceptsInheritedMaxValue = false;
+    readonly acceptsInheritedMax = false;
 
-    onMaxValueChanged() {
-        copyPropertyConverted(this, 'max', 'maxValue', '', stringOrNumberToString);
+    onMaxChanged() {
+        try {
+            setOrRemoveAttribute(this.#input, 'max', stringOrNumberToStringOrNull(this.max));
+        }
+        catch {
+            this.#input.removeAttribute('max');
+        }
         this.#checkValidity();
     }
 
-    get stepValue() {
-        return this.getProperty<string | number | undefined>('stepValue');
+    get step() {
+        return this.getProperty<string | number | undefined>('step');
     }
 
-    readonly acceptsInheritedStepValue = false;
+    readonly acceptsInheritedStep = false;
 
-    onStepValueChanged() {
-        copyPropertyConverted(this, 'step', 'stepValue', '', stringOrNumberToString);
+    onStepChanged() {
+        try {
+            setOrRemoveAttribute(this.#input, 'step', stringOrNumberToStringOrNull(this.step));
+        }
+        catch {
+            this.#input.removeAttribute('step');
+        }
         this.#checkValidity();
     }
 
@@ -92,13 +127,13 @@ export class TextInput extends HtmlInputControl implements
 
     #checkValidity() {
         const customError = this.customValidity;
-        this.setCustomValidity(typeof customError === 'string' ? customError : '');
-        this.checkValidity();
-        this.writeToBindingSourceByAttribute('is-valid', this.validity.valid);
+        this.#input.setCustomValidity(typeof customError === 'string' ? customError : '');
+        this.#input.checkValidity();
+        this.writeToBindingSourceByAttribute('is-valid', this.#input.validity.valid);
     }
 
     #onInputImpl() {
-        this.writeToBindingSource('text', this.value);
+        this.writeToBindingSource('text', this.#input.value);
         this.#checkValidity();
     }
 
@@ -109,6 +144,12 @@ export class TextInput extends HtmlInputControl implements
     override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
         if (name === 'is-valid') {
             this.#checkValidity();
+        }
+        else if (name === 'type') {
+            this.#input.type = newValue ?? 'text';
+        }
+        else if (name === 'required') {
+            this.#input.required = newValue != null;
         }
         else {
             super.attributeChangedCallback(name, oldValue, newValue);

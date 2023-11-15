@@ -4,6 +4,6 @@ import { TextControl } from './text-control';
 import { TextInput } from './text-input';
 
 customElements.define('text-control', TextControl);
-customElements.define('text-input', TextInput, { extends: 'input' });
-customElements.define('bool-input', BooleanInput, { extends: 'input'});
+customElements.define('text-input', TextInput);
+customElements.define('bool-input', BooleanInput);
 customElements.define('model-control', HtmlControl);

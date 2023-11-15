@@ -19,7 +19,10 @@
                 align-items: baseline;
                 white-space: nowrap;
             }
-            text-control, input[is="text-input"] {
+            text-input::part(input) {
+                padding: 0.2em 0.5ch;
+            }
+            text-control {
                 padding: 0.2em 0.5ch;
             }
             body {
@@ -32,9 +35,6 @@
             .picker > input {
                 min-width: 10em;
             }
-            input:invalid {
-                background: lightpink;
-            }
         </style>
     </head>
     <body>
@@ -43,39 +43,39 @@
 
             <h2>Text and Classes</h2>
             <div class="form">
-                <span>Input:</span><input is="text-input" type="text" text="this.text" hint="this.hint">
-                <span>Input:</span><input is="text-input" type="search" text="this.text" hint="this.hint">
+                <span>Input:</span><text-input type="text" text="this.text" hint="this.hint"></text-input>
+                <span>Input:</span><text-input type="search" text="this.text" hint="this.hint"></text-input>
                 <span>Text:</span><text-control class="border-1px" text="this.text" classes="this.textClasses" on-click="this.clicked(event)">&nbsp;</text-control>
             </div>
             <h2>Checkboxes</h2>
 
-            <input is="bool-input" type="checkbox" checked-value="this.redAndBlue" id="red-or-blue"><label for="red-or-blue">Red and Blue</label>
-            <input is="bool-input" type="checkbox" checked-value="this.red" id="red"><label for="red">Red</label>
-            <input is="bool-input" type="checkbox" checked-value="this.blue" id="blue"><label for="blue">Blue</label>
+            <bool-input checked="this.redAndBlue"><span slot="content">Red and Blue</span></bool-input>
+            <bool-input checked="this.red"><span slot="content">Red</span></bool-input>
+            <bool-input checked="this.blue"><span slot="content">Blue</span></bool-input>
 
             <h2>Radios</h2>
-            <input is="bool-input" type="radio" checked-value="this.option1" id="option1"><label for="option1">Red</label>
-            <input is="bool-input" type="radio" checked-value="this.option2" id="option2"><label for="option2">Blue</label>
+            <bool-input type="radio" checked="this.option1"><span slot="content">Red</span></bool-input>
+            <bool-input type="radio" checked="this.option2"><span slot="content">Blue</span></bool-input>
 
             <h2>Pickers</h2>
             <div class="picker">
-                Time <input is="text-input" type="time" text="this.time" required> read as: <text-control text="this.time"></text-control>
+                Time <text-input type="time" text="this.time" required></text-input> read as: <text-control text="this.time"></text-control>
             </div>
             <div class="picker">
-                Date <input is="text-input" type="date" text="this.date" min-value="this.minDate" max-value="this.maxDate" is-valid="this.isDateValid"> read as: <text-control text="this.dateCheck"></text-control>
+                Date <text-input type="date" text="this.date" min="this.minDate" max="this.maxDate" is-valid="this.isDateValid"></text-input> read as: <text-control text="this.dateCheck"></text-control>
             </div>
             <div class="picker">
-                Color <input is="text-input" type="color" text="this.color"> read as: <text-control text="this.color"></text-control>
+                Color <text-input type="color" text="this.color"></text-input> read as: <text-control text="this.color"></text-control>
             </div>
             <div class="picker">
-                Month <input is="text-input" type="month" text="this.month"> read as: <text-control text="this.month"></text-control>
+                Month <text-input type="month" text="this.month"></text-input> read as: <text-control text="this.month"></text-control>
             </div>
 
             <h2>Number</h2>
-            Enter number from 0 to 10: <input is="text-input" type="number" size="20" text="this.number" min-value="0" max-value="10" step-value="2" is-valid="this.numberValid"> Valid: <text-control text="this.numberValid"></text-control>
+            Enter number from 0 to 10: <text-input type="number" size="20" text="this.number" min="0" max="10" step="2" is-valid="this.numberValid"></text-input> Valid: <text-control text="this.numberValid"></text-control>
 
             <h2>Validity</h2>
-            Enter email: <input is="text-input" type="text" size="20" text="this.email" custom-validity="this.emailCustomValidity" is-valid="this.isEmailValid"> Valid: <text-control text="this.emailValidationMessage"></text-control>
+            Enter email: <text-input type="text" size="20" text="this.email" custom-validity="this.emailCustomValidity" is-valid="this.isEmailValid"></text-input> Valid: <text-control text="this.emailValidationMessage"></text-control>
         </model-control>
 
         <script type="module" src="../dist/test/visual-tests"></script>

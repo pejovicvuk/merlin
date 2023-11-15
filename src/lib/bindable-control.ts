@@ -103,11 +103,11 @@ export type BindableProperty<T extends string, R> = {
 
 export interface IBindableControl extends IChangeTracker, IHtmlControlCore, BindableProperty<'model', any> {
     onPropertyChanged(property: string): void;
-    getProperty<T>(name: string, explicitVal?: T): T | undefined;
+    getProperty<T>(name: keyof this, explicitVal?: T): T | undefined; // name should be 'keyof this extends string ? keyof this : never' but the compiler then doesn't infer types correctly
     getAmbientProperty<T>(name: string, explicitVal: T): T | undefined;
     notifyPropertySetExplicitly(name: string): void;
     notifyAmbientPropertySetExplicitly(name: string): void;
-    writeToBindingSource<T>(property: string, val: T): boolean;
+    writeToBindingSource<T>(property: keyof this, val: T): boolean;
     writeToBindingSourceByAttribute<T>(attributeName: string, val: T): boolean;
 }
 
@@ -280,13 +280,13 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
             this.#notifyListeners(camel);
         }
     
-        getProperty<T>(name: string, explicitVal?: T): T | undefined {
+        getProperty<T>(name: keyof this, explicitVal?: T): T | undefined {
             registerAccess(this, name);
     
             if (explicitVal !== undefined) {
                 return explicitVal;
             }
-            else if (this.hasAttribute(propertyNameToAttributeName(name))) {
+            else if (typeof name === 'string' && this.hasAttribute(propertyNameToAttributeName(name))) {
                 return this.#evaluateBinding(name);
             }
             else {
@@ -345,7 +345,8 @@ export function makeBindableControl(BaseClass: (new () => HtmlControlCore)): (ne
             return this.#model === undefined;
         }
 
-        writeToBindingSource<T>(property: string, val: T): boolean {
+        writeToBindingSource<T>(property: keyof this, val: T): boolean {
+            if (typeof property !== 'string') throw new Error('Cannot use a non-string property.');
             const attributeName = propertyNameToAttributeName(property);
             return this.writeToBindingSourceByAttribute(attributeName, val);
         }

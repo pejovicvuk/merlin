@@ -44,31 +44,12 @@ function getChangedHanlderName(property: string) {
 export interface IHtmlControl extends IBindableControl, HtmlControlProperty<'classes', string | undefined> {
 }
 
-export function copyProperty<T extends IHtmlControl, Property extends keyof T, PropType extends T[Property]>(ctl: T, dst: Property, src: Property, errorVal: PropType) {
-    try {
-        ctl[dst] = ctl[src];
-    }
-    catch (err) {
-        ctl[dst] = errorVal;
-    }
-}
-
-export function copyPropertyConverted<T extends IHtmlControl, DestProperty extends keyof T, SrcProperty extends keyof T, PropType extends T[DestProperty]>(ctl: T, dst: DestProperty, src: SrcProperty, errorVal: PropType, convert: (val: T[SrcProperty]) => T[DestProperty]) {
-    try {
-        ctl[dst] = convert(ctl[src]);
-    }
-    catch (err) {
-        ctl[dst] = errorVal;
-    }
-
-}
-
 export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new () => IHtmlControl) & { observedAttributes: string[]; bindableProperties: string[]; } {
     return class HtmlControl extends BaseClass implements IHtmlControl {
         readonly #scheduledEvaluations = new Map<string, number>();
         #lastKnownClasses?: string
 
-        static observedAttributes = [...BindableControl.observedAttributes, 'classes', ...events];
+        static observedAttributes = [...BindableControl.observedAttributes, 'classes', ...events.map(x => 'on-' + x)];
         static bindableProperties = [...BindableControl.bindableProperties, 'classes'];
 
         get classes() {

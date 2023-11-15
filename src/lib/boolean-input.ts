@@ -1,44 +1,60 @@
-import { HtmlControlProperty, HtmlInputControl } from "./html-control";
+import { HtmlControl, HtmlControlProperty, HtmlInputControl } from "./html-control";
 
-export class BooleanInput extends HtmlInputControl implements HtmlControlProperty<'checkedValue', string | undefined> {
-    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'checked-value'];
-    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'checkedValue'];
+export class BooleanInput extends HtmlControl implements
+    HtmlControlProperty<'checked', boolean | undefined> {
+    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'checked', 'type'];
+    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'checked'];
 
     constructor() {
         super();
-        this.addEventListener('change', BooleanInput.#onChange);
+        this.attachShadow({ mode: 'open' });
+        this.shadowRoot!.innerHTML = '<input id="input" type="checkbox" part="input"><label for="input"><slot name="content"></slot></label>';
+        this.#input.addEventListener('change', BooleanInput.#onChange);
     }
 
-    get checkedValue() {
-        return this.getProperty<string | undefined>('checkedValue', undefined);
+    get #input() {
+        return this.shadowRoot!.querySelector('input') as HTMLInputElement;
     }
 
-    readonly acceptsInheritedCheckedValue = false;
+    get checked() {
+        return this.getProperty<boolean | undefined>('checked', undefined);
+    }
 
-    onCheckedValueChanged() {
+    readonly acceptsInheritedChecked = false;
+
+    onCheckedChanged() {
         if (!this.isPartOfDom) return;
 
         try {
-            const checked = this.checkedValue;
+            const checked = this.checked;
             if (typeof checked === 'boolean') {
-                this.indeterminate = false;
-                this.checked = checked;
+                this.#input.indeterminate = false;
+                this.#input.checked = checked;
             }
             else {
-                this.indeterminate = true;
+                this.#input.indeterminate = true;
             }
         }
         catch (err) {
-            this.indeterminate = true;
+            this.#input.indeterminate = true;
         }
     }
 
     #onChangeImpl() {
-        this.writeToBindingSource('checkedValue', this.checked);
+        this.writeToBindingSource('checked', this.#input.checked);
     }
 
     static #onChange(ev: Event) {
-        (ev.currentTarget as BooleanInput).#onChangeImpl();
+        ((((ev.currentTarget as HTMLInputElement).parentNode) as ShadowRoot).host as BooleanInput).#onChangeImpl();
+    }
+
+    override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+        if (name === 'type') {
+            this.#input.type = newValue === 'radio' ? 'radio' : 'checkbox';
+        }
+        else {
+            super.attributeChangedCallback(name, oldValue, newValue);
+        }
     }
 }
 

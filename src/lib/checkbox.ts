@@ -1,18 +1,19 @@
-import { HtmlControl, HtmlControlProperty, HtmlInputControl } from "./html-control";
+import { HtmlControlProperty } from "./html-control";
+import { InputControl } from "./input-control";
 
-export class CheckBox extends HtmlControl implements
+export class CheckBox extends InputControl implements
     HtmlControlProperty<'checked', boolean | undefined> {
-    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'checked', 'type'];
-    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'checked'];
+    static override observedAttributes = [...InputControl.observedAttributes, 'checked', 'type'];
+    static override bindableProperties = [...InputControl.bindableProperties, 'checked'];
 
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
         this.shadowRoot!.innerHTML = '<style>:host { display: inline-flex; align-items: baseline; } label { flex: 1 0 auto; }</style><input id="input" type="checkbox" part="input"><label for="input" part="label"><slot name="content"></slot></label>';
-        this.#input.addEventListener('change', CheckBox.#onChange);
+        this.input.addEventListener('change', CheckBox.#onChange);
     }
 
-    get #input() {
+    protected get input() {
         return this.shadowRoot!.querySelector('input') as HTMLInputElement;
     }
 
@@ -26,20 +27,20 @@ export class CheckBox extends HtmlControl implements
         try {
             const checked = this.checked;
             if (typeof checked === 'boolean') {
-                this.#input.indeterminate = false;
-                this.#input.checked = checked;
+                this.input.indeterminate = false;
+                this.input.checked = checked;
             }
             else {
-                this.#input.indeterminate = true;
+                this.input.indeterminate = true;
             }
         }
         catch (err) {
-            this.#input.indeterminate = true;
+            this.input.indeterminate = true;
         }
     }
 
     #onChangeImpl() {
-        this.writeToBindingSource('checked', this.#input.checked);
+        this.writeToBindingSource('checked', this.input.checked);
     }
 
     static #onChange(ev: Event) {
@@ -48,7 +49,7 @@ export class CheckBox extends HtmlControl implements
 
     override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
         if (name === 'type') {
-            this.#input.type = newValue === 'radio' ? 'radio' : 'checkbox';
+            this.input.type = newValue === 'radio' ? 'radio' : 'checkbox';
         }
         else {
             super.attributeChangedCallback(name, oldValue, newValue);

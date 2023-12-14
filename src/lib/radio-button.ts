@@ -1,18 +1,19 @@
-import { HtmlControl, HtmlControlProperty, HtmlInputControl } from "./html-control";
+import { HtmlControlProperty } from "./html-control";
+import { InputControl } from "./input-control";
 
-export class RadioButton extends HtmlControl implements
+export class RadioButton extends InputControl implements
     HtmlControlProperty<'value', any | undefined>,  HtmlControlProperty<'option', any | undefined>{
-    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'value', 'option'];
-    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'value', 'option'];
+    static override observedAttributes = [...InputControl.observedAttributes, 'value', 'option'];
+    static override bindableProperties = [...InputControl.bindableProperties, 'value', 'option'];
 
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
         this.shadowRoot!.innerHTML = '<style>:host { display: inline-flex; align-items: baseline; } label { flex: 1 0 auto; }</style><input id="input" type="radio" part="input"><label for="input" part="label"><slot name="content"></slot></label>';
-        this.#input.addEventListener('change', RadioButton.#onChange);
+        this.input.addEventListener('change', RadioButton.#onChange);
     }
 
-    get #input() {
+    protected get input() {
         return this.shadowRoot!.querySelector('input') as HTMLInputElement;
     }
 
@@ -24,11 +25,11 @@ export class RadioButton extends HtmlControl implements
 
     #evaluate() {
         try {
-            this.#input.indeterminate = false;
-            this.#input.checked = this.value === this.option;
+            this.input.indeterminate = false;
+            this.input.checked = this.value === this.option;
         }
         catch (err) {
-            this.#input.indeterminate = true;
+            this.input.indeterminate = true;
         }
     }
 
@@ -47,7 +48,7 @@ export class RadioButton extends HtmlControl implements
     }
 
     #onChangeImpl() {
-        if (this.#input.checked) {
+        if (this.input.checked) {
             this.writeToBindingSource('value', this.option);
         }
     }

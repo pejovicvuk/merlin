@@ -1,5 +1,6 @@
 import { setOrRemoveAttribute } from "./bindable-control";
-import { HtmlControl, HtmlControlProperty, HtmlInputControl } from "./html-control";
+import { HtmlControlProperty } from "./html-control";
+import { InputControl } from "./input-control";
 
 function stringOrNumberToStringOrNull(val: string | number | undefined | null): string | null {
     return typeof val === 'string' ? val :
@@ -14,7 +15,7 @@ function toStringOrErrorOrNull(text: string | undefined | null): string | null {
         'typeof text === ' + typeof text;
 }
 
-export class TextInput extends HtmlControl implements
+export class TextInput extends InputControl implements
     HtmlControlProperty<'text', string | undefined>,
     HtmlControlProperty<'hint', string | undefined>,
     HtmlControlProperty<'min', string | number | undefined>,
@@ -22,8 +23,8 @@ export class TextInput extends HtmlControl implements
     HtmlControlProperty<'step', string | number | undefined>,
     HtmlControlProperty<'customValidity', string | undefined> {
 
-    static override bindableProperties = [...HtmlInputControl.bindableProperties, 'text', 'hint', 'customValidity', 'min', 'max', 'step'];
-    static override observedAttributes = [...HtmlInputControl.observedAttributes, 'text', 'hint', 'custom-validity', 'min', 'max', 'step', 'is-valid', 'type', 'required'];
+    static override bindableProperties = [...InputControl.bindableProperties, 'text', 'hint', 'customValidity', 'min', 'max', 'step'];
+    static override observedAttributes = [...InputControl.observedAttributes, 'text', 'hint', 'custom-validity', 'min', 'max', 'step', 'is-valid', 'type', 'required'];
 
     constructor() {
         super();
@@ -32,7 +33,7 @@ export class TextInput extends HtmlControl implements
         this.addEventListener('input', TextInput.#onInput);
     }
 
-    get #input() {
+    protected get input() {
         return this.shadowRoot!.querySelector('input') as HTMLInputElement;
     }
 
@@ -44,10 +45,10 @@ export class TextInput extends HtmlControl implements
 
     onTextChanged() {
         try {
-            this.#input.value = toStringOrErrorOrNull(this.text) ?? '';
+            this.input.value = toStringOrErrorOrNull(this.text) ?? '';
         }
         catch {
-            this.#input.value = '';
+            this.input.value = '';
         }
         this.#checkValidity();
     }
@@ -60,10 +61,10 @@ export class TextInput extends HtmlControl implements
 
     onHintChanged() {
         try {
-            setOrRemoveAttribute(this.#input, 'placeholder', toStringOrErrorOrNull(this.hint));
+            setOrRemoveAttribute(this.input, 'placeholder', toStringOrErrorOrNull(this.hint));
         }
         catch {
-            this.#input.removeAttribute('placeholder');
+            this.input.removeAttribute('placeholder');
         }
     }
 
@@ -75,10 +76,10 @@ export class TextInput extends HtmlControl implements
 
     onMinChanged() {
         try {
-            setOrRemoveAttribute(this.#input, 'min', stringOrNumberToStringOrNull(this.min));
+            setOrRemoveAttribute(this.input, 'min', stringOrNumberToStringOrNull(this.min));
         }
         catch {
-            this.#input.removeAttribute('min');
+            this.input.removeAttribute('min');
         }
         this.#checkValidity();
     }
@@ -91,10 +92,10 @@ export class TextInput extends HtmlControl implements
 
     onMaxChanged() {
         try {
-            setOrRemoveAttribute(this.#input, 'max', stringOrNumberToStringOrNull(this.max));
+            setOrRemoveAttribute(this.input, 'max', stringOrNumberToStringOrNull(this.max));
         }
         catch {
-            this.#input.removeAttribute('max');
+            this.input.removeAttribute('max');
         }
         this.#checkValidity();
     }
@@ -107,10 +108,10 @@ export class TextInput extends HtmlControl implements
 
     onStepChanged() {
         try {
-            setOrRemoveAttribute(this.#input, 'step', stringOrNumberToStringOrNull(this.step));
+            setOrRemoveAttribute(this.input, 'step', stringOrNumberToStringOrNull(this.step));
         }
         catch {
-            this.#input.removeAttribute('step');
+            this.input.removeAttribute('step');
         }
         this.#checkValidity();
     }
@@ -127,13 +128,13 @@ export class TextInput extends HtmlControl implements
 
     #checkValidity() {
         const customError = this.customValidity;
-        this.#input.setCustomValidity(typeof customError === 'string' ? customError : '');
-        this.#input.checkValidity();
-        this.writeToBindingSourceByAttribute('is-valid', this.#input.validity.valid);
+        this.input.setCustomValidity(typeof customError === 'string' ? customError : '');
+        this.input.checkValidity();
+        this.writeToBindingSourceByAttribute('is-valid', this.input.validity.valid);
     }
 
     #onInputImpl() {
-        this.writeToBindingSource('text', this.#input.value);
+        this.writeToBindingSource('text', this.input.value);
         this.#checkValidity();
     }
 
@@ -146,10 +147,10 @@ export class TextInput extends HtmlControl implements
             this.#checkValidity();
         }
         else if (name === 'type') {
-            this.#input.type = newValue ?? 'text';
+            this.input.type = newValue ?? 'text';
         }
         else if (name === 'required') {
-            this.#input.required = newValue != null;
+            this.input.required = newValue != null;
         }
         else {
             super.attributeChangedCallback(name, oldValue, newValue);

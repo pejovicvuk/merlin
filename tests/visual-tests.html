@@ -38,17 +38,17 @@
         </style>
     </head>
     <body>
-        <model-control id="model">
+        <model-control id="model" disabled="!this.enabled">
             <h1>Visual Tests</h1>
 
             <h2>Text and Classes</h2>
             <div class="form">
                 <span>Input:</span><text-input type="text" text="this.text" hint="this.hint"></text-input>
                 <span>Input:</span><text-input type="search" text="this.text" hint="this.hint"></text-input>
-                <span>Text:</span><text-control class="border-1px" text="this.text" classes="this.textClasses" on-click="this.clicked(event)">&nbsp;</text-control>
+                <span>Text:</span><text-control class="border-1px" text="this.text" classes="this.oddOrEven" on-click="this.clicked(event)">&nbsp;</text-control>
             </div>
-            <h2>Checkboxes</h2>
 
+            <h2>Checkboxes</h2>
             <div>
                 <check-box checked="this.redAndBlue"><span slot="content">Red and Blue</span></check-box>
                 <check-box checked="this.red"><span slot="content">Red</span></check-box>
@@ -78,6 +78,12 @@
 
             <h2>Validity</h2>
             Enter email: <text-input type="text" size="20" text="this.email" custom-validity="this.emailCustomValidity" is-valid="this.isEmailValid"></text-input> Valid: <text-control text="this.emailValidationMessage"></text-control>
+
+            <h2>Enable/Disable</h2>
+            <div>
+                <check-box checked="this.enabled"><span slot="content">Enabled</span></check-box>
+                <text-input type="text" text="this.text" hint="this.hint" disabled="!this.enabled"></text-input>
+            </div>
         </model-control>
 
         <script type="module" src="../dist/test/visual-tests"></script>

@@ -1,5 +1,4 @@
-import { BindableControl, BindableProperty, IBindableControl, makeBindableControl } from "./bindable-control";
-import { makeHtmlControlCore } from "./html-control-core";
+import { BindableControl, BindableProperty } from "./bindable-control";
 import { cancelTaskExecution, enqueTask } from "./task-queue";
 
 function callHandler(event: Event, type: string) {
@@ -21,7 +20,7 @@ const events = [
     "mouseenter", "mouseleave", "mousemove", "mouseout", "mouseover", "mouseup", "mousewheel", "paste", "pointercancel",
     "pointerdown", "pointerenter", "pointerleave", "pointermove", "pointerout", "pointerover", "pointerup", "scroll",
     "select", "touchcancel", "touchend", "touchmove", "touchstart", "transitioncancel", "transitionend", "transitionrun",
-    "transitionstart", "wheel"
+    "transitionstart", "wheel", "drag", "dragend", "dragenter", "dragleave", "dragover", "dragstart", "drop"
 ];
 
 const eventsToEventHandlers = new Map(events.map(x => ['on-' + x, (ev: Event) => callHandler(ev, 'on-' + x)]));
@@ -41,106 +40,108 @@ function getChangedHanlderName(property: string) {
     return ret;
 }
 
-export interface IHtmlControl extends IBindableControl, HtmlControlProperty<'classes', string | undefined> {
-}
+export class HtmlControl extends BindableControl implements
+    HtmlControlProperty<'classes', string | undefined>,
+    HtmlControlProperty<'disabled', boolean | undefined>  {
 
-export function makeHtmlControl(BaseClass: (new () => IBindableControl)): (new () => IHtmlControl) & { observedAttributes: string[]; bindableProperties: string[]; } {
-    return class HtmlControl extends BaseClass implements IHtmlControl {
-        readonly #scheduledEvaluations = new Map<string, number>();
-        #lastKnownClasses?: string
+    readonly #scheduledEvaluations = new Map<string, number>();
+    #lastKnownClasses?: string
 
-        static observedAttributes = [...BindableControl.observedAttributes, 'classes', ...events.map(x => 'on-' + x)];
-        static bindableProperties = [...BindableControl.bindableProperties, 'classes'];
+    static override observedAttributes = [...BindableControl.observedAttributes, 'classes', 'disabled', ...events.map(x => 'on-' + x)];
+    static override bindableProperties = [...BindableControl.bindableProperties, 'classes', 'disabled'];
 
-        get classes() {
-            return this.getProperty<string | undefined>('classes', undefined);
+    get classes() {
+        return this.getProperty<string | undefined>('classes', undefined);
+    }
+
+    readonly acceptsInheritedClasses = false;
+
+    onClassesChanged() {
+        let classes: string | undefined = undefined;
+        if (this.isPartOfDom) {
+            try {
+                const ac = this.classes;
+                classes = typeof ac === 'string' ? ac : undefined;
+            }
+            catch(err) {
+                console.log(err);
+            }
         }
 
-        readonly acceptsInheritedClasses = false;
+        if (this.#lastKnownClasses === classes) return;
 
-        onClassesChanged() {
-            let classes: string | undefined = undefined;
-            if (this.isPartOfDom) {
-                try {
-                    const ac = this.classes;
-                    classes = typeof ac === 'string' ? ac : undefined;
-                }
-                catch(err) {
-                    console.log(err);
-                }
-            }
+        const oldClasses = this.#lastKnownClasses?.split(/ +/);
+        const newClasses = classes?.split(/ +/);
 
-            if (this.#lastKnownClasses === classes) return;
-
-            const oldClasses = this.#lastKnownClasses?.split(/ +/);
-            const newClasses = classes?.split(/ +/);
-
-            if (oldClasses !== undefined) {
-                for (const cls of oldClasses) {
-                    if (newClasses === undefined || newClasses.indexOf(cls) < 0) {
-                        this.classList.remove(cls);
-                    }
-                }
-            }
-            if (newClasses !== undefined) {
-                for (const cls of newClasses) {
-                    if (oldClasses === undefined || oldClasses.indexOf(cls) < 0) {
-                        this.classList.add(cls);
-                    }
-                }
-            }
-
-            this.#lastKnownClasses = classes;
-        }
-
-        #evaluatePropertyCallbackImpl(property: string): void {
-            this.#scheduledEvaluations.delete(property);
-            const handler = (this as Record<string, any>)[getChangedHanlderName(property)];
-            if (typeof handler === 'function') handler.call(this);
-        }
-
-        #evaluatePropertyCallback = (property: string) => this.#evaluatePropertyCallbackImpl(property);
-
-        override onPropertyChanged(property: string): void {
-            if (!this.isPartOfDom) return;
-
-            if (!this.#scheduledEvaluations.has(property)) {
-                this.#scheduledEvaluations.set(property, enqueTask(this.#evaluatePropertyCallback, property));
-            }
-
-            super.onPropertyChanged(property);
-        }
-
-        override onDisconnectedFromDom(): void {
-            for (const taskId of this.#scheduledEvaluations.values()) {
-                cancelTaskExecution(taskId);
-            }
-
-            this.#scheduledEvaluations.clear();
-
-            super.onDisconnectedFromDom();
-        }
-
-        override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
-            super.attributeChangedCallback(name, oldValue, newValue);
-
-            const func = eventsToEventHandlers.get(name);
-            if (func !== undefined) {
-                const event = name.substring(3);
-
-                if (oldValue === null && newValue !== null) {
-                    this.addEventListener(event, func);
-                }
-                else if (oldValue !== null && newValue === null) {
-                    this.removeEventListener(event, func);
+        if (oldClasses !== undefined) {
+            for (const cls of oldClasses) {
+                if (newClasses === undefined || newClasses.indexOf(cls) < 0) {
+                    this.classList.remove(cls);
                 }
             }
         }
-    };
-}
+        if (newClasses !== undefined) {
+            for (const cls of newClasses) {
+                if (oldClasses === undefined || oldClasses.indexOf(cls) < 0) {
+                    this.classList.add(cls);
+                }
+            }
+        }
 
-export const HtmlControl = makeHtmlControl(BindableControl);
-export type HtmlControl = IHtmlControl;
+        this.#lastKnownClasses = classes;
+    }
 
-export type HtmlInputControl = IHtmlControl & HTMLInputElement;
-export const HtmlInputControl = makeHtmlControl(makeBindableControl(makeHtmlControlCore(HTMLInputElement))) as (new () => IHtmlControl & HTMLInputElement) & { observedAttributes: string[]; bindableProperties: string[]; };
+    get disabled() {
+        return this.getAmbientProperty<boolean | undefined>('disabled', undefined);
+    }
+
+    readonly acceptsInheritedDisabled = true;
+
+    onDisabledChanged() {
+    }
+
+    #evaluatePropertyCallbackImpl(property: string): void {
+        this.#scheduledEvaluations.delete(property);
+        const handler = (this as Record<string, any>)[getChangedHanlderName(property)];
+        if (typeof handler === 'function') handler.call(this);
+    }
+
+    #evaluatePropertyCallback = (property: string) => this.#evaluatePropertyCallbackImpl(property);
+
+    override onPropertyChanged(property: string): void {
+        if (!this.isPartOfDom) return;
+
+        if (!this.#scheduledEvaluations.has(property)) {
+            this.#scheduledEvaluations.set(property, enqueTask(this.#evaluatePropertyCallback, property));
+        }
+
+        super.onPropertyChanged(property);
+    }
+
+    override onDisconnectedFromDom(): void {
+        for (const taskId of this.#scheduledEvaluations.values()) {
+            cancelTaskExecution(taskId);
+        }
+
+        this.#scheduledEvaluations.clear();
+
+        super.onDisconnectedFromDom();
+    }
+
+    override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+        super.attributeChangedCallback(name, oldValue, newValue);
+
+        const func = eventsToEventHandlers.get(name);
+        if (func !== undefined) {
+            const event = name.substring(3);
+
+            if (oldValue === null && newValue !== null) {
+                this.addEventListener(event, func);
+            }
+            else if (oldValue !== null && newValue === null) {
+                this.removeEventListener(event, func);
+            }
+        }
+    }
+};
+

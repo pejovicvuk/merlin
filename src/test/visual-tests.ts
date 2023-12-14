@@ -29,7 +29,7 @@ class TextModel {
 
     text = "";
     
-    get textClasses() {
+    get oddOrEven() {
         return (this.text.length & 1) === 0 ? 'odd' : 'even';
     }
 
@@ -76,6 +76,9 @@ class TextModel {
     clicked(ev: MouseEvent) {
         alert(ev.button);
     }
+
+    // disable
+    enabled = true;
 }
 
 const textModel = toTracked(new TextModel());

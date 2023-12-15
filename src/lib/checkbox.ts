@@ -1,10 +1,10 @@
-import { HtmlControlProperty } from "./html-control";
+import { HtmlControlBindableProperty } from "./html-control";
 import { InputControl } from "./input-control";
 
 export class CheckBox extends InputControl implements
-    HtmlControlProperty<'checked', boolean | undefined> {
-    static override observedAttributes = [...InputControl.observedAttributes, 'checked', 'type'];
+    HtmlControlBindableProperty<'checked', boolean | undefined> {
     static override bindableProperties = [...InputControl.bindableProperties, 'checked'];
+    static override additionalAttributes = [...InputControl.additionalAttributes, 'type'];
 
     constructor() {
         super();
@@ -20,8 +20,6 @@ export class CheckBox extends InputControl implements
     get checked() {
         return this.getProperty<boolean | undefined>('checked', undefined);
     }
-
-    readonly acceptsInheritedChecked = false;
 
     onCheckedChanged() {
         try {

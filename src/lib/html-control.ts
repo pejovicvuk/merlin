@@ -1,9 +1,12 @@
-import { BindableControl, BindableProperty } from "./bindable-control";
+import { map } from "./algorithms";
+import { AmbientProperty, BindableControl, BindableProperty } from "./bindable-control";
 import { cancelTaskExecution, enqueTask } from "./task-queue";
 
 function callHandler(event: Event, type: string) {
     if (event.currentTarget === null) return;
     const element = event.currentTarget as HtmlControl;
+    if (element.disabled) return;
+    
     const attr = element.getAttribute(type);
     if (attr === null) return;
     const model = element.model;
@@ -14,7 +17,7 @@ function callHandler(event: Event, type: string) {
 
 const events = [
     "animationcancel", "animationend", "animationiteration", "animationstart", "afterscriptexecute", "auxclick",
-    "beforescriptexecute", "blur", "click", "compositionend", "compositionstart", "compositionupdate", "contextmenu",
+    "blur", "click", "compositionend", "compositionstart", "compositionupdate", "contextmenu",
     "copy", "cut", "dblclick", "error", "focusin", "focusout", "focus", "fullscreenchange", "fullscreenerror", "gesturechange",
     "gestureend", "gesturestart", "gotpointercapture", "keydown", "keypress", "keyup", "lostpointercapture", "mousedown",
     "mouseenter", "mouseleave", "mousemove", "mouseout", "mouseover", "mouseup", "mousewheel", "paste", "pointercancel",
@@ -25,7 +28,11 @@ const events = [
 
 const eventsToEventHandlers = new Map(events.map(x => ['on-' + x, (ev: Event) => callHandler(ev, 'on-' + x)]));
 
-export type HtmlControlProperty<T extends string, R> = BindableProperty<T, R> & {
+export type HtmlControlBindableProperty<T extends string, R> = BindableProperty<T, R> & {
+    readonly [_ in `on${Capitalize<T>}Changed`]: () => void;
+};
+
+export type HtmlControlAmbientProperty<T extends string, R> = AmbientProperty<T, R> & {
     readonly [_ in `on${Capitalize<T>}Changed`]: () => void;
 };
 
@@ -41,20 +48,19 @@ function getChangedHanlderName(property: string) {
 }
 
 export class HtmlControl extends BindableControl implements
-    HtmlControlProperty<'classes', string | undefined>,
-    HtmlControlProperty<'disabled', boolean | undefined>  {
+    HtmlControlBindableProperty<'classes', string | undefined>,
+    HtmlControlAmbientProperty<'disabled', boolean | undefined>  {
 
     readonly #scheduledEvaluations = new Map<string, number>();
     #lastKnownClasses?: string
 
-    static override observedAttributes = [...BindableControl.observedAttributes, 'classes', 'disabled', ...events.map(x => 'on-' + x)];
-    static override bindableProperties = [...BindableControl.bindableProperties, 'classes', 'disabled'];
+    static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes'];
+    static override ambientProperties = [...BindableControl.ambientProperties, 'disabled'];
+    static override readonly additionalAttributes = [...BindableControl.additionalAttributes, ...map(events, x => 'on-' + x)];
 
     get classes() {
         return this.getProperty<string | undefined>('classes', undefined);
     }
-
-    readonly acceptsInheritedClasses = false;
 
     onClassesChanged() {
         let classes: string | undefined = undefined;
@@ -92,10 +98,10 @@ export class HtmlControl extends BindableControl implements
     }
 
     get disabled() {
-        return this.getAmbientProperty<boolean | undefined>('disabled', undefined);
+        return this.getProperty<boolean | undefined>('disabled', undefined);
     }
 
-    readonly acceptsInheritedDisabled = true;
+    readonly hasExplicitDisabled = false;
 
     onDisabledChanged() {
     }

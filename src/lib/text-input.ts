@@ -1,5 +1,5 @@
 import { setOrRemoveAttribute } from "./bindable-control";
-import { HtmlControlProperty } from "./html-control";
+import { HtmlControlBindableProperty } from "./html-control";
 import { InputControl } from "./input-control";
 
 function stringOrNumberToStringOrNull(val: string | number | undefined | null): string | null {
@@ -16,15 +16,15 @@ function toStringOrErrorOrNull(text: string | undefined | null): string | null {
 }
 
 export class TextInput extends InputControl implements
-    HtmlControlProperty<'text', string | undefined>,
-    HtmlControlProperty<'hint', string | undefined>,
-    HtmlControlProperty<'min', string | number | undefined>,
-    HtmlControlProperty<'max', string | number | undefined>,
-    HtmlControlProperty<'step', string | number | undefined>,
-    HtmlControlProperty<'customValidity', string | undefined> {
+    HtmlControlBindableProperty<'text', string | undefined>,
+    HtmlControlBindableProperty<'hint', string | undefined>,
+    HtmlControlBindableProperty<'min', string | number | undefined>,
+    HtmlControlBindableProperty<'max', string | number | undefined>,
+    HtmlControlBindableProperty<'step', string | number | undefined>,
+    HtmlControlBindableProperty<'customValidity', string | undefined> {
 
     static override bindableProperties = [...InputControl.bindableProperties, 'text', 'hint', 'customValidity', 'min', 'max', 'step'];
-    static override observedAttributes = [...InputControl.observedAttributes, 'text', 'hint', 'custom-validity', 'min', 'max', 'step', 'is-valid', 'type', 'required'];
+    static override additionalAttributes = [...InputControl.additionalAttributes, 'type'];
 
     constructor() {
         super();
@@ -41,8 +41,6 @@ export class TextInput extends InputControl implements
         return this.getProperty<string | undefined>('text');
     }
 
-    readonly acceptsInheritedText = false;
-
     onTextChanged() {
         try {
             this.input.value = toStringOrErrorOrNull(this.text) ?? '';
@@ -57,8 +55,6 @@ export class TextInput extends InputControl implements
         return this.getProperty<string | undefined>('hint', undefined);
     }
 
-    readonly acceptsInheritedHint = false;
-
     onHintChanged() {
         try {
             setOrRemoveAttribute(this.input, 'placeholder', toStringOrErrorOrNull(this.hint));
@@ -71,8 +67,6 @@ export class TextInput extends InputControl implements
     get min() {
         return this.getProperty<string | number | undefined>('min');
     }
-
-    readonly acceptsInheritedMin = false;
 
     onMinChanged() {
         try {
@@ -88,8 +82,6 @@ export class TextInput extends InputControl implements
         return this.getProperty<string | number | undefined>('max');
     }
 
-    readonly acceptsInheritedMax = false;
-
     onMaxChanged() {
         try {
             setOrRemoveAttribute(this.input, 'max', stringOrNumberToStringOrNull(this.max));
@@ -104,8 +96,6 @@ export class TextInput extends InputControl implements
         return this.getProperty<string | number | undefined>('step');
     }
 
-    readonly acceptsInheritedStep = false;
-
     onStepChanged() {
         try {
             setOrRemoveAttribute(this.input, 'step', stringOrNumberToStringOrNull(this.step));
@@ -119,8 +109,6 @@ export class TextInput extends InputControl implements
     get customValidity() {
         return this.getProperty<string | undefined>('customValidity', undefined);
     }
-
-    readonly acceptsInheritedCustomValidity = false;
 
     onCustomValidityChanged() {
         this.#checkValidity();

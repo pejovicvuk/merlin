@@ -1,4 +1,4 @@
-import { indexOfTriplet } from "./algorithms";
+import { contains, indexOfTriplet, map } from "./algorithms";
 import { IChangeTracker, clearDependencies, startEvalScope, endEvalScope, registerAccess, addListener, removeListener } from "./dependency-tracking";
 import { HtmlControlCore } from "./html-control-core";
 
@@ -24,37 +24,46 @@ interface AncestorsKey {};
 
 const ancestorsKey: AncestorsKey = {};
 
-function acceptsInherited<T extends object>(obj: T, acceptsInheritedPropertyName: string) {
-    return (obj as Record<string, any>)[acceptsInheritedPropertyName] === true;
+function hasExplicit<T extends object>(obj: T, hasExplicitPropertyName: string) {
+    return (obj as Record<string, any>)[hasExplicitPropertyName] === true;
 }
 
-const acceptsInheritedPropertyNameMap = new Map<string, string>();
+const hasExplicitPropertyNameMap = new Map<string, string>();
 
-function getAcceptsInheritedPropertyName(name: string) {
-    let ret = acceptsInheritedPropertyNameMap.get(name);
+function getHasExplicitPropertyName(name: string) {
+    let ret = hasExplicitPropertyNameMap.get(name);
     if (ret === undefined) {
-        ret = 'acceptsInherited' + name[0].toUpperCase() + name.slice(1);
-        acceptsInheritedPropertyNameMap.set(name, ret);
+        ret = 'hasExplicit' + name[0].toUpperCase() + name.slice(1);
+        hasExplicitPropertyNameMap.set(name, ret);
     }
     return ret;
 }
 
-function propagatePropertyChangeInternal(element: HtmlControlCore, name: string, acceptsInheritedPropertyName: string, attributeName: string) {
+function propagatePropertyChangeInternal(element: HtmlControlCore, name: string, hasExplicitPropertyName: string, attributeName: string) {
     for (const child of element.childControls) {
-        if (!acceptsInherited(child, acceptsInheritedPropertyName) || child.hasAttribute(attributeName)) continue;
-        
-        if (name in child && 'onChanged' in child && typeof child.onChanged === 'function') {
-            child.onChanged(name);
+        if (child instanceof BindableControl) {
+            const ctor = child.constructor as Function & { bindableProperties?: Iterable<string>; ambientProperties?: Iterable<string>; };
+
+            const hasLocal = ctor.bindableProperties !== undefined && contains(ctor.bindableProperties, name);
+            if (hasLocal) continue;
+
+            const hasAmbient = ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name);
+
+            if (hasAmbient) {
+                if (hasExplicit(child, hasExplicitPropertyName) || child.hasAttribute(attributeName)) continue;
+                
+                child.onPropertyChanged(name);
+            }
         }
 
-        propagatePropertyChangeInternal(child, name, acceptsInheritedPropertyName, attributeName);
+        propagatePropertyChangeInternal(child, name, hasExplicitPropertyName, attributeName);
     }
 }
 
 function propagatePropertyChange(element: HtmlControlCore, name: string) {
     if (!element.isPartOfDom) return;
 
-    propagatePropertyChangeInternal(element, name, getAcceptsInheritedPropertyName(name), propertyNameToAttributeName(name));
+    propagatePropertyChangeInternal(element, name, getHasExplicitPropertyName(name), propertyNameToAttributeName(name));
 }
 
 export function bindable(...properties: string[]) {
@@ -66,21 +75,13 @@ export function bindable(...properties: string[]) {
                 console.log('target is a function');
             }
 
-            const ctl = target as { bindableProperties?: string[]; observedAttributes?: string[]; };
+            const ctl = target as { bindableProperties?: string[]; };
 
             if (!Object.hasOwn(ctl, 'bindableProperties')) {
                 ctl.bindableProperties = ctl.bindableProperties !== undefined ? [...ctl.bindableProperties, ...properties] : [...properties];
             }
             else {
                 ctl.bindableProperties!.push(...properties);
-            }
-
-            if (!Object.hasOwn(ctl, 'observedAttributes')) {
-                const mapped = properties.map(x => propertyNameToAttributeName(x));
-                ctl.observedAttributes = ctl.observedAttributes !== undefined ? [...ctl.observedAttributes, ...mapped] : [...mapped];
-            }
-            else {
-                ctl.observedAttributes!.push(...properties);
             }
         });
     };
@@ -97,30 +98,45 @@ export function setOrRemoveAttribute(element: Element, qualifiedName: string, va
 
 export type BindableProperty<T extends string, R> = {
     [_ in T]: R;
-} & {
-    readonly [_ in `acceptsInherited${Capitalize<T>}`]: boolean;
 };
 
-export class BindableControl extends HtmlControlCore implements IChangeTracker, BindableProperty<'model', any> {
+export type AmbientProperty<T extends string, R> = BindableProperty<T, R> & {
+    readonly [_ in `hasExplicit${Capitalize<T>}`]: boolean;
+};
+
+export class BindableControl extends HtmlControlCore implements IChangeTracker, AmbientProperty<'model', any> {
     #bindingDependencies?: Map<string, any[]>; // for each binding the array of dependencies obtained using evalTracked. the key is the attribute name, not the camel-cased property name
     #bindingValues?: Map<string, any>;
     #bindingExceptions?: Map<string, any>;
     #listeners?: any []; // we pack listeners in triples for efficiency, (key, listener, token)
     #model?: any;
 
-    static observedAttributes = ['model'];
-    static bindableProperties = ['model'];
+    static readonly bindableProperties: Iterable<string> = [];
+    static readonly ambientProperties: Iterable<string> = ['model'];
+    static readonly additionalAttributes: Iterable<string> = [];
+
+    static get observedAttributes() {
+        return [...map(this.bindableProperties, propertyNameToAttributeName), ...map(this.ambientProperties, propertyNameToAttributeName), ...this.additionalAttributes];
+    }
 
     override onConnectedToDom(): void {
         super.onConnectedToDom();
 
-        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
-        if (ctor.bindableProperties !== undefined) {
+        const ctor = this.constructor as Function & { bindableProperties?: Iterable<string>; ambientProperties?: Iterable<string>; };
+        if (ctor.bindableProperties !== undefined || ctor.ambientProperties !== undefined) {
             this.#bindingValues?.clear();
             this.#bindingExceptions?.clear();
 
-            for (const prop of ctor.bindableProperties) {
-                this.#notifyListeners(prop);
+            if (ctor.bindableProperties !== undefined) {
+                for (const prop of ctor.bindableProperties) {
+                    this.#notifyListeners(prop);
+                }
+            }
+
+            if (ctor.ambientProperties !== undefined) {
+                for (const prop of ctor.ambientProperties) {
+                    this.#notifyListeners(prop);
+                }
             }
 
             this.#notifyListeners(ancestorsKey);
@@ -141,8 +157,8 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
             this.#bindingDependencies = undefined;
         }
 
-        const ctor = this.constructor as Function & { bindableProperties?: readonly string[] };
-        if (ctor.bindableProperties !== undefined) {
+        const ctor = this.constructor as Function & { bindableProperties?: Iterable<string>; ambientProperties?: Iterable<string>; };
+        if (ctor.bindableProperties !== undefined || ctor.ambientProperties !== undefined) {
             this.#bindingValues?.clear();
             this.#bindingExceptions?.clear();
         }
@@ -247,7 +263,16 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
     }
 
     #onChangedImpl(name: string) {
-        if (this.#clearBindingCache(name)) this.#notifyListeners(name);
+        if (this.#clearBindingCache(name)) {
+            this.#notifyListeners(name);
+
+            const ctor = this.constructor as Function & {ambientProperties?: Iterable<string>; };
+            const isAmbient = ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name);
+
+            if (isAmbient && !hasExplicit(this, getHasExplicitPropertyName(name))) {
+                propagatePropertyChange(this, name);
+            }
+        }
     }
 
     #onChanged = (name: string) => this.#onChangedImpl(name);
@@ -259,25 +284,22 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
 
         const camel = dashToCamel(name);
 
+        const ctor = this.constructor as Function & { bindableProperties?: Iterable<string>; ambientProperties?: Iterable<string>; };
+
+        const isLocal = ctor.bindableProperties !== undefined && contains(ctor.bindableProperties, camel);
+        const isAmbient = ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, camel);
+
+        if (!isLocal && !isAmbient) return;
+
         this.#clearBindingCache(camel);
         this.#notifyListeners(camel);
-    }
 
-    getProperty<T>(name: keyof this, explicitVal?: T): T | undefined {
-        registerAccess(this, name);
-
-        if (explicitVal !== undefined) {
-            return explicitVal;
-        }
-        else if (typeof name === 'string' && this.hasAttribute(propertyNameToAttributeName(name))) {
-            return this.#evaluateBinding(name);
-        }
-        else {
-            return undefined;
+        if (isAmbient && !hasExplicit(this, getHasExplicitPropertyName(camel))) {
+            propagatePropertyChange(this, camel);
         }
     }
 
-    getAmbientProperty<T>(name: string, explicitVal: T): T | undefined {
+    getProperty<T>(name: string, explicitVal?: T): T | undefined {
         registerAccess(this, name);
 
         if (explicitVal !== undefined) {
@@ -287,12 +309,24 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
             return this.#evaluateBinding(name);
         }
         else {
-            registerAccess(this, ancestorsKey);
+            const ctor = this.constructor as Function & { ambientProperties?: Iterable<string>; };
+            if (ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name)) {
+                registerAccess(this, ancestorsKey);
 
-            let ctl = this.parentControl;
-            while (ctl !== undefined) {
-                if (name in ctl) return (ctl as Record<string, any>)[name];
-                ctl = ctl.parentControl;
+                const explicitPropertyName = getHasExplicitPropertyName(name);
+                const attr = propertyNameToAttributeName(name);
+
+                let ctl = this.parentControl;
+                while (ctl !== undefined) {
+                    if (ctl instanceof BindableControl) {
+                        const ctlCtor = ctl.constructor as Function & { ambientProperties?: Iterable<string>; };
+                        if (ctlCtor.ambientProperties !== undefined && contains(ctlCtor.ambientProperties, name)) {
+                            if (hasExplicit(ctl, explicitPropertyName) || ctl.hasAttribute(attr)) return (ctl as Record<string, any>)[name];
+                        }
+                    }
+
+                    ctl = ctl.parentControl;
+                }
             }
 
             return undefined;
@@ -304,28 +338,25 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
 
         this.#clearBindingCache(name);
         this.#notifyListeners(name);
-    }
 
-    notifyAmbientPropertySetExplicitly(name: string) {
-        if (!this.isPartOfDom) return;
-
-        this.#clearBindingCache(name);
-        this.#notifyListeners(name);
-        propagatePropertyChange(this, name);
+        const ctor = this.constructor as Function & { ambientProperties?: Iterable<string>; };
+        if (ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name)) {
+            propagatePropertyChange(this, name);
+        }
     }
 
     get model() {
-        return this.getAmbientProperty('model', this.#model);
+        return this.getProperty('model', this.#model);
     }
 
     set model(val: any) {
         if (this.#model === val) return;
         this.#model = val;
-        this.notifyAmbientPropertySetExplicitly('model');
+        this.notifyPropertySetExplicitly('model');
     }
 
-    get acceptsInheritedModel() {
-        return this.#model === undefined;
+    get hasExplicitModel() {
+        return this.#model !== undefined;
     }
 
     writeToBindingSource<T>(property: keyof this, val: T): boolean {

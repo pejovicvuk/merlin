@@ -1,9 +1,10 @@
-import { HtmlControlProperty } from "./html-control";
+import { HtmlControlBindableProperty } from "./html-control";
 import { InputControl } from "./input-control";
 
 export class RadioButton extends InputControl implements
-    HtmlControlProperty<'value', any | undefined>,  HtmlControlProperty<'option', any | undefined>{
-    static override observedAttributes = [...InputControl.observedAttributes, 'value', 'option'];
+    HtmlControlBindableProperty<'value', any | undefined>, 
+    HtmlControlBindableProperty<'option', any | undefined> {
+    
     static override bindableProperties = [...InputControl.bindableProperties, 'value', 'option'];
 
     constructor() {
@@ -20,8 +21,6 @@ export class RadioButton extends InputControl implements
     get value() {
         return this.getProperty<boolean | undefined>('value', undefined);
     }
-
-    readonly acceptsInheritedValue = false;
 
     #evaluate() {
         try {
@@ -40,8 +39,6 @@ export class RadioButton extends InputControl implements
     get option() {
         return this.getProperty<boolean | undefined>('option', undefined);
     }
-
-    readonly acceptsInheritedOption = false;
 
     onOptionChanged() {
         this.#evaluate

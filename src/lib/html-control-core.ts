@@ -9,7 +9,7 @@ function getFirstHtmlControlAncestorOrDepth(el: HtmlControlCore): HtmlControlCor
     let parent = el.parentElement;
 
     while (parent !== null) {
-        if (parentOrDepthTag in parent) return parent as HtmlControlCore;
+        if (parent instanceof HtmlControlCore) return parent;
         parent = parent.parentElement;
         ++depth;
     }

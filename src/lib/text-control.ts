@@ -1,7 +1,6 @@
-import { HtmlControl, HtmlControlProperty } from "./html-control";
+import { HtmlControl, HtmlControlBindableProperty } from "./html-control";
 
-export class TextControl extends HtmlControl implements HtmlControlProperty<'text', any> {
-    static override observedAttributes = [...HtmlControl.observedAttributes, 'text'];
+export class TextControl extends HtmlControl implements HtmlControlBindableProperty<'text', any> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'text'];
 
     constructor() {
@@ -12,8 +11,6 @@ export class TextControl extends HtmlControl implements HtmlControlProperty<'tex
     get text() {
         return this.getProperty<string | undefined>('text', undefined);
     }
-
-    readonly acceptsInheritedText = false;
 
     onTextChanged() {
         try {

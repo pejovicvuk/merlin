@@ -7,13 +7,13 @@ class BasicControl extends BindableControl {
     #testProperty?: any;
 
     get testProperty() {
-        return this.getAmbientProperty('testProperty', this.#testProperty);
+        return this.getProperty('testProperty', this.#testProperty);
     }
 
     set testProperty(val: any) {
         if (this.#testProperty === val) return;
         this.#testProperty = val;
-        this.notifyAmbientPropertySetExplicitly('testProperty');
+        this.notifyPropertySetExplicitly('testProperty');
     }
 
     get testPropertyBinding() {
@@ -38,8 +38,8 @@ export function testBasicControl(playground: HTMLDivElement) {
 
     const ctl = document.createElement(name) as BasicControl;
     playground.appendChild(ctl);
-    ensureEvent(ctl, 'onPropertyChanged: model');
     ensureEvent(ctl, 'onPropertyChanged: testProperty');
+    ensureEvent(ctl, 'onPropertyChanged: model');
 
     throwIfHasEvents();
 
@@ -102,10 +102,10 @@ export function testModel(playground: HTMLDivElement) {
     throwIfHasEvents();
 
     playground.appendChild(parent);
-    ensureEvent(parent, 'onPropertyChanged: model');
     ensureEvent(parent, 'onPropertyChanged: testProperty');
-    ensureEvent(child, 'onPropertyChanged: model');
+    ensureEvent(parent, 'onPropertyChanged: model');
     ensureEvent(child, 'onPropertyChanged: testProperty');
+    ensureEvent(child, 'onPropertyChanged: model');
 
     throwIfHasEvents();
 
@@ -130,10 +130,10 @@ export function testModel(playground: HTMLDivElement) {
     // ensureEvent(parent, 'onPropertyChanged: testProperty');
 
     playground.appendChild(parent);
-    ensureEvent(parent, 'onPropertyChanged: model');
     ensureEvent(parent, 'onPropertyChanged: testProperty');
-    ensureEvent(child, 'onPropertyChanged: model');
+    ensureEvent(parent, 'onPropertyChanged: model');
     ensureEvent(child, 'onPropertyChanged: testProperty');
+    ensureEvent(child, 'onPropertyChanged: model');
     playground.innerHTML = '';
     throwIfHasEvents();
 }

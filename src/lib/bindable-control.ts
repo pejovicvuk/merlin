@@ -333,15 +333,17 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         }
     }
 
-    notifyPropertySetExplicitly(name: string) {
+    notifyPropertySetExplicitly<T>(name: string, oldValue: T, newValue: T) {
         if (!this.isPartOfDom) return;
 
         this.#clearBindingCache(name);
         this.#notifyListeners(name);
 
-        const ctor = this.constructor as Function & { ambientProperties?: Iterable<string>; };
-        if (ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name)) {
-            propagatePropertyChange(this, name);
+        if ((oldValue !== undefined) !== (newValue !== undefined) && !this.hasAttribute(propertyNameToAttributeName(name))) {
+            const ctor = this.constructor as Function & { ambientProperties?: Iterable<string>; };
+            if (ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name)) {
+                propagatePropertyChange(this, name);
+            }
         }
     }
 
@@ -351,8 +353,10 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
 
     set model(val: any) {
         if (this.#model === val) return;
+        
+        const old = this.#model;
         this.#model = val;
-        this.notifyPropertySetExplicitly('model');
+        this.notifyPropertySetExplicitly('model', old, val);
     }
 
     get hasExplicitModel() {

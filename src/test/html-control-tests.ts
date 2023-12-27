@@ -12,8 +12,10 @@ class BasicControl extends BindableControl {
 
     set testProperty(val: any) {
         if (this.#testProperty === val) return;
+
+        const oldVal = this.#testProperty;
         this.#testProperty = val;
-        this.notifyPropertySetExplicitly('testProperty');
+        this.notifyPropertySetExplicitly('testProperty', oldVal, val);
     }
 
     get testPropertyBinding() {

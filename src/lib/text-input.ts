@@ -48,6 +48,7 @@ export class TextInput extends InputControl implements
         catch {
             this.input.value = '';
         }
+        
         this.#checkValidity();
     }
 

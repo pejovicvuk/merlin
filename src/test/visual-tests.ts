@@ -27,7 +27,7 @@ class TextModel {
             '';
     }
 
-    text = "";
+    text = "a";
     
     get oddOrEven() {
         return (this.text.length & 1) === 0 ? 'odd' : 'even';

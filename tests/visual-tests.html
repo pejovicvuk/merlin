@@ -14,7 +14,7 @@
             .form {
                 display: grid;
                 grid-template-columns: min-content 20ch;
-                gap: 0.2em;
+                gap: 0.5em;
                 margin-right: auto;
                 align-items: baseline;
                 white-space: nowrap;
@@ -24,6 +24,9 @@
             }
             text-control {
                 padding: 0.2em 0.5ch;
+            }
+            text-control::part(text) {
+                white-space: pre;
             }
             body {
                 font-family: Arial, Helvetica, sans-serif;

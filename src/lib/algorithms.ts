@@ -12,7 +12,7 @@ export function contains<T>(collection: Iterable<T>, val: T): boolean {
     return false;
 }
 
-export function indexOfPair<T>(arr: readonly T[], first: T, second: T, start = 0) {
+export function indexOfPair<T>(arr: readonly T[], first: T, second: T) {
     for (let idx = 0; idx < arr.length; idx += 2) {
         if (arr[idx] === first && arr[idx + 1] === second) return idx;
     }
@@ -20,11 +20,21 @@ export function indexOfPair<T>(arr: readonly T[], first: T, second: T, start = 0
     return -1;
 }
 
-export function indexOfTriplet<T>(arr: readonly T[], first: T, second: T, third: T, start = 0) {
+export function indexOfTriplet<T>(arr: readonly T[], first: T, second: T, third: T) {
     for (let idx = 0; idx < arr.length; idx += 3) {
         if (arr[idx] === first && arr[idx + 1] === second && arr[idx + 2] === third) return idx;
     }
 
     return -1;
+}
+
+export function removePair<T>(arr: T[], first: T, second: T) {
+    const idx = indexOfPair(arr, first, second);
+    if (idx < 0) return;
+
+    const lastIdx = arr.length - 2;
+    arr[idx] = arr[lastIdx];
+    arr[idx + 1] = arr[lastIdx + 1];
+    arr.splice(lastIdx, 2);
 }
 

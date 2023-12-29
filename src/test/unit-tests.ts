@@ -1,3 +1,4 @@
+import { testArrayTrackingBasics1, testArrayTrackingBasics2 } from './array-tracking-tests';
 import { registerParentAndChild, registerParentThenChild, registerChildThenParent, registerGrandparentAndChildThenParent } from './html-control-core-tests';
 import { testBasicControl, testModel } from './html-control-tests';
 import { throwIfHasEvents } from './unit-test-interfaces';
@@ -34,6 +35,8 @@ function runTest(name: string, test: (playground: HTMLDivElement) => string | un
     }    
 }
 
+runTest('Array tracking', testArrayTrackingBasics1);
+runTest('Array tracking', testArrayTrackingBasics2);
 runTest('Register parent and child.', registerParentAndChild);
 runTest('Register parent then child.', registerParentThenChild);
 runTest('Register child then parent.', registerChildThenParent);

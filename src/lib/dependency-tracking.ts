@@ -1,4 +1,4 @@
-import { indexOfPair, indexOfTriplet } from "./algorithms";
+import { indexOfPair, indexOfTriplet, removePair } from "./algorithms";
 
 type ChangeListener<T> = (token: T) => void;
 
@@ -8,6 +8,16 @@ export const removeListener: unique symbol = Symbol("removeListener");
 export interface IChangeTracker {
     [addListener]<T>(handler: ChangeListener<T>, key: any, token: T): void;
     [removeListener]<T>(handler: ChangeListener<T>, key: any, token: T): void;
+}
+
+type ArrayChangeListener = (index: number, inserted: number, deleted: number) => void;
+
+export const addArrayListener: unique symbol = Symbol("addArrayListener");
+export const removeArrayListener: unique symbol = Symbol("removeArrayListener");
+
+export interface IArrayChangeTracker extends IChangeTracker {
+    [addArrayListener](handler: ArrayChangeListener): void;
+    [removeArrayListener](handler: ArrayChangeListener): void;
 }
 
 let accessDependencies: undefined | (any[]);
@@ -133,12 +143,13 @@ function isSetter(obj: object, prop: string | symbol): boolean {
     return lookup.setters?.contains(prop) ?? false;;
 }
 
-const trackingProxyHandlerSymbol = Symbol("TrackingProxyHandler");
+const getTrackerSymbol = Symbol("TrackingProxyHandler");
+const getProxySymbol = Symbol("Target");
 
 export const hasListeners: unique symbol = Symbol("hasListeners");
 
 class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> implements ProxyHandler<T>, IChangeTracker {
-    #listeners?: (string | symbol | ChangeListener<any>) []; // we pack listeners in pairs for efficiency, first the key and then the object
+    #listeners?: (string | symbol | ChangeListener<any>) []; // we pack listeners in triplets for efficiency [key, listener, token]
     proxy!: T;
 
     constructor(target: T) {
@@ -191,7 +202,8 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
     }
 
     get(target: T, property: string | symbol, receiver: any): any {
-        if (property === trackingProxyHandlerSymbol) return this;
+        if (property === getTrackerSymbol) return this;
+        else if (property === getProxySymbol) return target;
 
         if (!isGetter(target, property)) {
             registerAccess?.(this, property);
@@ -224,11 +236,308 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
     }
 }
 
-export function toTracked<T extends object & { [hasListeners]?: boolean; }>(obj: T) {
+class ArrayTrackingProxyHandlerBase implements IArrayChangeTracker {
+    protected _perIndexListeners?: ((any | ChangeListener<any>)[])[]; // one per array index, each member is an array where we pack listeners in pairs for efficiency [listener, token]
+    protected _lengthListeners?: (any | ChangeListener<any>)[];
+    protected _listeners?: ArrayChangeListener[];
+
+    [addListener]<T>(handler: ChangeListener<T>, key: any, token: any) {
+        if (typeof key === 'number') {
+            let map = this._perIndexListeners;
+            if (map === undefined) {
+                map = [];
+                this._perIndexListeners = map;
+            }
+            let arr = map[key];
+            if (arr === undefined) {
+                arr = [];
+                map[key] = arr;
+            }
+            arr.push(handler, token);
+        }
+        else if (key === 'length') {
+            if (this._lengthListeners === undefined) this._lengthListeners = [];
+            this._lengthListeners.push(handler, token);
+        }
+    }
+
+    [removeListener]<T>(handler: ChangeListener<T>, key: any, token: any) {
+        if (typeof key === 'number') {
+            const arr = this._perIndexListeners?.[key];
+            if (arr === undefined) return;
+
+            removePair(arr, handler, token);
+        }
+        else if (key === 'length') {
+            const arr = this._lengthListeners;
+            if (arr === undefined) return;
+
+            removePair(arr, handler, token);
+        }
+    }
+
+    [addArrayListener](handler: ArrayChangeListener) {
+        if (this._listeners === undefined) this._listeners = [];
+        this._listeners.push(handler);
+    }
+
+    [removeArrayListener](handler: ArrayChangeListener) {
+        if (this._listeners === undefined) return;
+        const idx = this._listeners.indexOf(handler);
+        if (idx < 0) return;
+        this._listeners[idx] = this._listeners[this._listeners.length - 1];
+        this._listeners.splice(this._listeners.length - 1, 1);
+    }
+
+}
+
+function notifyPlainListeners(arr: (readonly (any | ChangeListener<any>)[]) | undefined) {
+    if (arr === undefined) return;
+
+    for (let x = 0; x < arr.length; x += 2) {
+        const handler = arr[x] as ChangeListener<any>;
+        const token = arr[x + 1];
+
+        try {
+            handler(token);
+        }
+        catch(err) {
+            console.log(err);
+        }
+    }
+}
+
+class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase implements ProxyHandler<T[]> {
+    #notifyArray(index: number, inserted: number, deleted: number) {
+        if (this._listeners === undefined) return;
+
+        for(const listener of this._listeners) {
+            listener(index, inserted, deleted);
+        }
+    }
+
+    #notifyComplexChange(index: number, inserted: number, deleted: number) {
+        this.#notifyArray(index, inserted, deleted);
+
+        if (this._perIndexListeners === undefined) return;
+
+        if (inserted === deleted) {
+            for (let x = index; x < index + inserted; ++x) {
+                notifyPlainListeners(this._perIndexListeners[x]);
+            }
+        }
+        else {
+            for (let x = index; x < this._perIndexListeners.length; ++x) {
+                notifyPlainListeners(this._perIndexListeners[x]);
+            }
+        }
+    }
+
+    #notifyLength(old: number, nw: number) {
+        if (nw < old) {
+            this.#notifyArray(nw, 0, old - nw);
+
+            if (this._perIndexListeners !== undefined) {
+                for (let x = nw; x < this._perIndexListeners.length; ++x) {
+                    notifyPlainListeners(this._perIndexListeners[x]);
+                }
+            }
+        }
+        else if (nw > old) {
+            this.#notifyArray(old, nw - old, 0);
+        }
+
+        notifyPlainListeners(this._lengthListeners);
+    }
+
+    #notifySet(index: number) {
+        this.#notifyArray(index, 1, 1);
+
+        notifyPlainListeners(this._perIndexListeners?.[index]);
+    }
+
+    get(target: T[], property: string | symbol, _receiver: any): any {
+        if (property === getTrackerSymbol) return this;
+        else if (property === getProxySymbol) return target;
+
+        if (property === 'push') return this.#push;
+        else if (property === 'pop') return this.#pop;
+        else if (property === 'shift') return this.#shift;
+        else if (property === 'unshift') return this.#unshift;
+        else if (property === 'splice') return this.#splice;
+        else if (property === 'length') {
+            registerAccess(this, 'length');
+            return target.length;
+        } else if (typeof property === 'string') {
+            const idx = parseInt(property);
+            if (!Number.isNaN(idx) && idx >= 0) {
+                registerAccess(this, idx);
+                return target[idx];
+            }
+            else {
+                return undefined;
+            }
+        }
+        else if (typeof property === 'number') {
+            registerAccess(this, property);
+            return target[property];
+        }
+        else {
+            return undefined;
+        }
+    }
+
+    set(target: T[], property: string | symbol, newValue: any, _receiver: any): boolean {
+        if (property === 'length') {
+            const old = target.length;
+            if (old !== newValue) {
+                target.length = newValue;
+                this.#notifyLength(old, newValue);
+            }
+        }
+        else if (typeof property === 'string') {
+            const idx = parseInt(property);
+            if (!Number.isNaN(idx) && idx >= 0) {
+                const old = target[idx];
+                if (old !== newValue) {
+                    target[idx] = newValue;
+                    this.#notifySet(idx);
+                }
+            }
+        }
+        else if (typeof property === 'number') {
+            if (property >= 0) {
+                const old = target[property];
+                if (old !== newValue) {
+                    target[property] = newValue;
+                    this.#notifySet(property);
+                }
+            }
+        }
+
+        return true;
+    }
+
+    deleteProperty(target: T[], property: string | symbol): boolean {
+        if (typeof property === 'string') {
+            const idx = parseInt(property);
+            if (!Number.isNaN(idx) && idx >= 0) {
+                const old = target[idx];
+                if (old !== undefined) {
+                    delete target[idx];
+                    this.#notifySet(idx);
+                }
+
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        else if (typeof property === 'number') {
+            if (property >= 0) {
+                const old = target[property];
+                if (old !== undefined) {
+                    delete target[property];
+                    this.#notifySet(property);
+                }
+                return true;
+            }
+            else {
+                return false;
+            }
+        }
+        else {
+            return Reflect.deleteProperty(target, property);
+        }
+    }
+
+    #push(...items: T[]): number {
+        const self = (this as any)[getTrackerSymbol] as ArrayTrackingProxyHandler<T>;
+        const target = (this as any)[getProxySymbol] as T[];
+
+        const len = target.length;
+        const ret = target.push(...items);
+        self.#notifyComplexChange(len, items.length, 0);
+
+        return ret;
+    }
+
+    #pop(): T | undefined {
+        const self = (this as any)[getTrackerSymbol] as ArrayTrackingProxyHandler<T>;
+        const target =  (this as any)[getProxySymbol] as T[];
+
+        const len = target.length;
+        if (len === 0) return undefined;
+        const ret = target.pop();
+        self.#notifyComplexChange(len - 1, 0, 1);
+        return ret;
+    }
+
+    #shift(): T | undefined {
+        const self = (this as any)[getTrackerSymbol] as ArrayTrackingProxyHandler<T>;
+        const target =  (this as any)[getProxySymbol] as T[];
+
+        if (target.length === 0) return undefined;
+        const ret = target.shift();
+        self.#notifyComplexChange(0, 0, 1);
+        return ret;
+    }
+
+    #unshift(...items: T[]): number {
+        const self = (this as any)[getTrackerSymbol] as ArrayTrackingProxyHandler<T>;
+        const target =  (this as any)[getProxySymbol] as T[];
+
+        const ret = target.unshift(...items);
+        self.#notifyComplexChange(0, items.length, 0);
+        return ret;
+    }
+
+    #splice(start: number, deleteCount: number | undefined, ...items: T[]): T[] {
+        const self = (this as any)[getTrackerSymbol] as ArrayTrackingProxyHandler<T>;
+        const target =  (this as any)[getProxySymbol] as T[];
+
+        if (deleteCount === undefined) deleteCount = target.length - start;
+        else if (deleteCount + start > target.length) deleteCount = target.length - start;
+
+        if (items !== undefined && items.length > 0) {
+            const ret = target.splice(start, deleteCount, ...items);
+            self.#notifyComplexChange(start, items.length, deleteCount);
+            return ret;
+        }
+        else {
+            const ret = target.splice(start, deleteCount);
+            self.#notifyComplexChange(start, 0, deleteCount);
+            return ret;
+        }
+    }
+}
+
+export function toTracked<T extends object & { [hasListeners]?: boolean; }>(obj: T): T {
+    if (Array.isArray(obj)) {
+        return new Proxy(obj, new ArrayTrackingProxyHandler<any>()) as T;
+    }
+    else {
+        const handler = new TrackingProxyHandler<T>(obj);
+        const ret = new Proxy(obj, handler);
+        handler.proxy = ret;
+        return ret;
+    }
+}
+
+export function prc() {
+    return new ArrayTrackingProxyHandler<any>();
+}
+
+export function toTracked2<T extends object & { [hasListeners]?: boolean; }>(obj: T): T {
     const handler = new TrackingProxyHandler<T>(obj);
     const ret = new Proxy(obj, handler);
     handler.proxy = ret;
     return ret;
+}
+
+export function getTracker<T extends object>(obj: T): T extends any[] ? IArrayChangeTracker : IChangeTracker {
+    return (obj as any)[getTrackerSymbol];
 }
 
 const dependencyChain: (any[] | number | undefined)[] = [];
@@ -282,4 +591,5 @@ export function clearDependencies<T>(listener: ChangeListener<T>, token: T, depe
         const tracker = dependencies[x + 1] as IChangeTracker;
         tracker[removeListener](listener, key, token);
     }
+    dependencies.splice(0);
 }

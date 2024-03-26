@@ -10,7 +10,7 @@ export class RadioButton extends InputControl implements
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this.shadowRoot!.innerHTML = '<style>:host { display: inline-flex; align-items: baseline; } label { flex: 1 0 auto; }</style><input id="input" type="radio" part="input"><label for="input" part="label"><slot name="content"></slot></label>';
+        this.shadowRoot!.innerHTML = '<style>:host { display: inline-flex; align-items: baseline; } label { flex: 1 0 auto; }</style><input id="input" type="radio" part="input"><label for="input" part="label"><slot></slot></label>';
         this.input.addEventListener('change', RadioButton.#onChange);
     }
 

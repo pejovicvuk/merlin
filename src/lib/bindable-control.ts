@@ -97,7 +97,7 @@ export function setOrRemoveAttribute(element: Element, qualifiedName: string, va
 }
 
 export type BindableProperty<T extends string, R> = {
-    [_ in T]: R;
+    [_ in T]: R | undefined;
 };
 
 export type AmbientProperty<T extends string, R> = BindableProperty<T, R> & {

@@ -2,7 +2,6 @@ import { CircularBuffer } from "./circular-buffer";
 
 export type Task<T> = (arg: T) => void;
 
-
 const queue = new CircularBuffer<Task<any> | undefined | any>();
 
 let queueStart = 0;

@@ -5,7 +5,7 @@ export function testArrayTrackingBasics1() {
 
     console.log(arr.length);
 
-    const tracker = getTracker(arr);
+    const tracker = getTracker(arr)!;
 
     let idx = 0;
     let inserted = 0;
@@ -30,7 +30,7 @@ export function testArrayTrackingBasics2() {
 
     console.log(arr.length);
 
-    const tracker = getTracker(arr);
+    const tracker = getTracker(arr)!;
 
     let idx = 0;
     let inserted = 0;

@@ -37,4 +37,3 @@ export function removePair<T>(arr: T[], first: T, second: T) {
     arr[idx + 1] = arr[lastIdx + 1];
     arr.splice(lastIdx, 2);
 }
-

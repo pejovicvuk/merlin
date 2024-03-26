@@ -513,6 +513,9 @@ class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase impleme
     }
 }
 
+// Gives you back the proxy to the object. Using this proxy you can attach event listners
+// to notify you when the object changes. The object is not modified in any way.
+
 export function toTracked<T extends object & { [hasListeners]?: boolean; }>(obj: T): T {
     if (Array.isArray(obj)) {
         return new Proxy(obj, new ArrayTrackingProxyHandler<any>()) as T;
@@ -525,18 +528,9 @@ export function toTracked<T extends object & { [hasListeners]?: boolean; }>(obj:
     }
 }
 
-export function prc() {
-    return new ArrayTrackingProxyHandler<any>();
-}
+// Given a proxy to a tracked object returns the object you can use to listen to its changes
 
-export function toTracked2<T extends object & { [hasListeners]?: boolean; }>(obj: T): T {
-    const handler = new TrackingProxyHandler<T>(obj);
-    const ret = new Proxy(obj, handler);
-    handler.proxy = ret;
-    return ret;
-}
-
-export function getTracker<T extends object>(obj: T): T extends any[] ? IArrayChangeTracker : IChangeTracker {
+export function getTracker<T extends object>(obj: T): T extends any[] ? IArrayChangeTracker | undefined : IChangeTracker | undefined {
     return (obj as any)[getTrackerSymbol];
 }
 

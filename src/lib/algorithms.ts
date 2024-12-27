@@ -37,3 +37,19 @@ export function removePair<T>(arr: T[], first: T, second: T) {
     arr[idx + 1] = arr[lastIdx + 1];
     arr.splice(lastIdx, 2);
 }
+
+export function sleepAsync(ms: number, signal?: AbortSignal) {
+    return new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+            signal?.removeEventListener('abort', abortHandler);
+            resolve();
+        }, ms);
+
+        const abortHandler = () => {
+            clearTimeout(timeout);
+            reject(signal);
+        };
+
+        signal?.addEventListener('abort', abortHandler);
+    });
+}

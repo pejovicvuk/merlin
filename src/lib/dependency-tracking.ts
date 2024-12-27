@@ -375,7 +375,7 @@ class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase impleme
                 return target[idx];
             }
             else {
-                return undefined;
+                return (target as any)[property];
             }
         }
         else if (typeof property === 'number') {
@@ -383,7 +383,7 @@ class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase impleme
             return target[property];
         }
         else {
-            return undefined;
+            return (target as any)[property];
         }
     }
 

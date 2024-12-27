@@ -1,3 +1,4 @@
+import { sleepAsync } from '../lib/algorithms';
 import { toTracked } from '../lib/dependency-tracking';
 import { HtmlControl } from '../lib/html-control';
 import '../lib/register-controls';
@@ -79,9 +80,25 @@ class TextModel {
 
     // disable
     enabled = true;
+
+    array = toTracked([1, 2, 3]);
 }
 
 const textModel = toTracked(new TextModel());
 
 const modelControl = document.getElementById('model') as HtmlControl
 modelControl.model = textModel;
+
+for (let i = 0; i < 6; i++) {
+    await sleepAsync(1000);
+    textModel.array.push(textModel.array.length + 1);
+}
+
+await sleepAsync(1000);
+textModel.array[1] = 0;
+
+await sleepAsync(1000);
+textModel.array.splice(2, 0, 9, 9, 9);
+
+await sleepAsync(1000);
+textModel.array.splice(5, 1);

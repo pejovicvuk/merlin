@@ -5,8 +5,7 @@ export class TextControl extends HtmlControl implements HtmlControlBindablePrope
 
     constructor() {
         super();
-        const shadow = this.attachShadow({mode: "open"});
-        shadow.innerHTML = '<span part="text"> </span>';
+        this.attachShadow({mode: "open"});
     }
 
     get text() {
@@ -14,14 +13,14 @@ export class TextControl extends HtmlControl implements HtmlControlBindablePrope
     }
 
     onTextChanged() {
-        const span = this.shadowRoot?.firstElementChild as HTMLSpanElement;
+        const shadow = this.shadowRoot!;
         try {
             const text = '' + this.text;
-            span.textContent = text === '' ? ' ' : text;
+            shadow.textContent = text === '' ? ' ' : text;
         }
         catch (err) {
             const text = '' + err;
-            span.textContent = text === '' ? ' ' : text;
+            shadow.textContent = text === '' ? ' ' : text;
         }
     }
 }

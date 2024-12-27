@@ -1,93 +1,76 @@
 <html>
-    <head>
-        <title>Unit Tests</title>
-        <style>
-            .border-1px {
-                border: 1px solid #333;
-            }
-            .odd {
-                background-color: lightblue;
-            }
-            .even {
-                background-color: rgb(167, 223, 167);
-            }
-            .form {
-                display: grid;
-                grid-template-columns: min-content 20ch;
-                gap: 0.5em;
-                margin-right: auto;
-                align-items: baseline;
-                white-space: nowrap;
-            }
-            text-input::part(input) {
-                padding: 0.2em 0.5ch;
-            }
-            text-control {
-                padding: 0.2em 0.5ch;
-            }
-            text-control::part(text) {
-                white-space: pre;
-            }
-            body {
-                font-family: Arial, Helvetica, sans-serif;
-                font-size: 14px;
-            }
-            .picker {
-                margin: 0.5ch 0;
-            }
-            .picker > input {
-                min-width: 10em;
-            }
-        </style>
-    </head>
-    <body>
-        <model-control id="model" disabled="!this.enabled">
-            <h1>Visual Tests</h1>
 
-            <h2>Text and Classes</h2>
-            <div class="form">
-                <span>Input:</span><text-input type="text" text="this.text" hint="this.hint"></text-input>
-                <span>Input:</span><text-input type="search" text="this.text" hint="this.hint"></text-input>
-                <span>Text:</span><text-control class="border-1px" text="this.text" classes="this.oddOrEven" on-click="this.clicked(event)">&nbsp;</text-control>
-            </div>
+<head>
+    <title>Unit Tests</title>
+    <link rel="stylesheet" href="visual-tests.css">
+</head>
 
-            <h2>Checkboxes</h2>
-            <div>
-                <check-box checked="this.redAndBlue">Red and Blue</check-box>
-                <check-box checked="this.red">Red</check-box>
-                <check-box checked="this.blue">Blue</check-box>
-            </div>
+<body>
+    <model-control id="model" disabled="!this.enabled">
+        <h1>Visual Tests</h1>
 
-            <h2>Radios</h2>
-            <radio-button type="radio" value="this.radio" option="0">Red</radio-button>
-            <radio-button type="radio" value="this.radio" option="1">Blue</radio-button>
+        <h2>Text and Classes</h2>
+        <div class="form">
+            <span>Input:</span><text-input type="text" text="this.text" hint="this.hint"></text-input>
+            <span>Input:</span><text-input type="search" text="this.text" hint="this.hint"></text-input>
+            <span>Text:</span><text-control class="border-1px" text="this.text" classes="this.oddOrEven"
+                on-click="this.clicked(event)">&nbsp;</text-control>
+        </div>
 
-            <h2>Pickers</h2>
-            <div class="picker">
-                Time <text-input type="time" text="this.time" required></text-input> read as: <text-control text="this.time"></text-control>
-            </div>
-            <div class="picker">
-                Date <text-input type="date" text="this.date" min="this.minDate" max="this.maxDate" is-valid="this.isDateValid"></text-input> read as: <text-control text="this.dateCheck"></text-control>
-            </div>
-            <div class="picker">
-                Color <text-input type="color" text="this.color"></text-input> read as: <text-control text="this.color"></text-control>
-            </div>
-            <div class="picker">
-                Month <text-input type="month" text="this.month"></text-input> read as: <text-control text="this.month"></text-control>
-            </div>
+        <h2>Checkboxes</h2>
+        <div>
+            <check-box checked="this.redAndBlue">Red and Blue</check-box>
+            <check-box checked="this.red">Red</check-box>
+            <check-box checked="this.blue">Blue</check-box>
+        </div>
 
-            <h2>Number</h2>
-            Enter number from 0 to 10: <text-input type="number" size="20" text="this.number" min="0" max="10" step="2" is-valid="this.numberValid"></text-input> Valid: <text-control text="this.numberValid"></text-control>
+        <h2>Radios</h2>
+        <radio-button type="radio" value="this.radio" option="0">Red</radio-button>
+        <radio-button type="radio" value="this.radio" option="1">Blue</radio-button>
 
-            <h2>Validity</h2>
-            Enter email: <text-input type="text" size="20" text="this.email" custom-validity="this.emailCustomValidity" is-valid="this.isEmailValid"></text-input> Valid: <text-control text="this.emailValidationMessage"></text-control>
+        <h2>Pickers</h2>
+        <div class="picker">
+            Time <text-input type="time" text="this.time" required></text-input> read as: <text-control
+                text="this.time"></text-control>
+        </div>
+        <div class="picker">
+            Date <text-input type="date" text="this.date" min="this.minDate" max="this.maxDate"
+                is-valid="this.isDateValid"></text-input> read as: <text-control text="this.dateCheck"></text-control>
+        </div>
+        <div class="picker">
+            Color <text-input type="color" text="this.color"></text-input> read as: <text-control
+                text="this.color"></text-control>
+        </div>
+        <div class="picker">
+            Month <text-input type="month" text="this.month"></text-input> read as: <text-control
+                text="this.month"></text-control>
+        </div>
 
-            <h2>Enable/Disable</h2>
-            <div>
-                <check-box checked="this.enabled" disabled="false">Enabled</check-box>
-            </div>
-        </model-control>
+        <h2>Number</h2>
+        Enter number from 0 to 10: <text-input type="number" size="20" text="this.number" min="0" max="10" step="2"
+            is-valid="this.numberValid"></text-input> Valid: <text-control text="this.numberValid"></text-control>
 
-        <script type="module" src="../dist/test/visual-tests"></script>
-    </body>
+        <h2>Validity</h2>
+        Enter email: <text-input type="text" size="20" text="this.email" custom-validity="this.emailCustomValidity"
+            is-valid="this.isEmailValid"></text-input> Valid: <text-control
+            text="this.emailValidationMessage"></text-control>
+
+        <h2>Enable/Disable</h2>
+        <div>
+            <check-box checked="this.enabled" disabled="false">Enabled</check-box>
+        </div>
+
+        <h2>Items</h2>
+        <items-control id="numbers" items="this.array" inherit-styles="true">
+            <template slot="item-template">
+                <div part="item">
+                    <text-control text="this" part="item text"></text-control>
+                </div>
+            </template>
+        </items-control>
+    </model-control>
+
+    <script type="module" src="../dist/test/visual-tests"></script>
+</body>
+
 </html>

@@ -1,5 +1,5 @@
-import { setOrRemoveAttribute } from "./bindable-control";
-import { HtmlControl } from "./html-control";
+import { setOrRemoveAttribute } from "./bindable-control.js";
+import { HtmlControl } from "./html-control.js";
 
 export abstract class InputControl extends HtmlControl {
     protected abstract get input(): HTMLInputElement;

@@ -1,6 +1,6 @@
-import { setOrRemoveAttribute } from "./bindable-control";
-import { HtmlControlBindableProperty } from "./html-control";
-import { InputControl } from "./input-control";
+import { setOrRemoveAttribute } from "./bindable-control.js";
+import { HtmlControlBindableProperty, importCss } from "./html-control.js";
+import { InputControl } from "./input-control.js";
 
 function stringOrNumberToStringOrNull(val: string | number | undefined | null): string | null {
     return typeof val === 'string' ? val :
@@ -15,6 +15,8 @@ function toStringOrErrorOrNull(text: string | undefined | null): string | null {
         'typeof text === ' + typeof text;
 }
 
+const styleSheet = await importCss(import.meta, './radio-button.css')
+
 export class TextInput extends InputControl implements
     HtmlControlBindableProperty<'text', string | undefined>,
     HtmlControlBindableProperty<'hint', string | undefined>,
@@ -28,8 +30,9 @@ export class TextInput extends InputControl implements
 
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
-        this.shadowRoot!.innerHTML = '<style>:host { display: inline-flex; flex-direction: column; }</style><input part="input">';
+        const shadow = this.attachShadow({ mode: 'open' });
+        shadow.adoptedStyleSheets = [styleSheet]
+        shadow.innerHTML = '<input part="input">';
         this.addEventListener('input', TextInput.#onInput);
     }
 

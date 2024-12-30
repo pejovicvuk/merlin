@@ -1,4 +1,4 @@
-import { addArrayListener, getTracker, toTracked } from "../lib/dependency-tracking";
+import { addArrayListener, getTracker, toTracked } from "../lib/dependency-tracking.js";
 
 export function testArrayTrackingBasics1() {
     const arr = toTracked([1, 2, 3]);

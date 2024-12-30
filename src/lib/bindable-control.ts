@@ -1,6 +1,6 @@
-import { contains, indexOfTriplet, map } from "./algorithms";
-import { IChangeTracker, clearDependencies, startEvalScope, endEvalScope, registerAccess, addListener, removeListener } from "./dependency-tracking";
-import { HtmlControlCore } from "./html-control-core";
+import { contains, indexOfTriplet, map } from "./algorithms.js";
+import { IChangeTracker, clearDependencies, startEvalScope, endEvalScope, registerAccess, addListener, removeListener } from "./dependency-tracking.js";
+import { HtmlControlCore } from "./html-control-core.js";
 
 function stringToDashedLowercase(s: string) {
     return '-' + s.toLowerCase();

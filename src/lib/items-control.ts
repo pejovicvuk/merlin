@@ -1,5 +1,5 @@
-import { addArrayListener, getTracker, removeArrayListener } from "./dependency-tracking";
-import { HtmlControl, HtmlControlBindableProperty } from "./html-control";
+import { addArrayListener, getTracker, removeArrayListener } from "./dependency-tracking.js";
+import { HtmlControl, HtmlControlBindableProperty } from "./html-control.js";
 
 export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'items'];

@@ -1,6 +1,6 @@
-import { toTracked, hasListeners } from "../lib/dependency-tracking";
-import { BindableControl, bindable, setOrRemoveAttribute } from "../lib/bindable-control";
-import { createNewElementName, postEvent, ensureEvent, throwIfHasEvents } from './unit-test-interfaces'
+import { toTracked, hasListeners } from "../lib/dependency-tracking.js";
+import { BindableControl, bindable, setOrRemoveAttribute } from "../lib/bindable-control.js";
+import { createNewElementName, postEvent, ensureEvent, throwIfHasEvents } from './unit-test-interfaces.js'
 
 @bindable('testProperty')
 class BasicControl extends BindableControl {

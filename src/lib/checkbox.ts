@@ -1,5 +1,7 @@
-import { HtmlControlBindableProperty } from "./html-control";
-import { InputControl } from "./input-control";
+import { HtmlControlBindableProperty, importCss } from "./html-control.js";
+import { InputControl } from "./input-control.js";
+
+const styleSheet = await importCss(import.meta, './checkbox.css')
 
 export class CheckBox extends InputControl implements
     HtmlControlBindableProperty<'checked', boolean | undefined> {
@@ -8,8 +10,9 @@ export class CheckBox extends InputControl implements
 
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
-        this.shadowRoot!.innerHTML = '<style>:host { display: inline-flex; align-items: baseline; } label { flex: 1 0 auto; }</style><input id="input" type="checkbox" part="input"><label for="input" part="label"><slot></slot></label>';
+        const shadow = this.attachShadow({ mode: 'open' });
+        shadow.adoptedStyleSheets = [styleSheet];
+        shadow.innerHTML = '<input id="input" type="checkbox" part="input"><label for="input" part="label"><slot></slot></label>';
         this.input.addEventListener('change', CheckBox.#onChange);
     }
 

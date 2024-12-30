@@ -4,9 +4,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "tsc",
+            "label": "yarn run build",
             "type": "shell",
-            "command": "tsc -p  ./src/tsconfig.json",
+            "command": "yarn run build",
             "problemMatcher": [],
             "group": {
                 "kind": "build",

@@ -1,6 +1,6 @@
-import { map } from "./algorithms";
-import { AmbientProperty, BindableControl, BindableProperty } from "./bindable-control";
-import { cancelTaskExecution, enqueTask } from "./task-queue";
+import { map } from "./algorithms.js";
+import { AmbientProperty, BindableControl, BindableProperty } from "./bindable-control.js";
+import { cancelTaskExecution, enqueTask } from "./task-queue.js";
 
 function callHandler(event: Event, type: string) {
     if (event.currentTarget === null) return;
@@ -151,3 +151,9 @@ export class HtmlControl extends BindableControl implements
     }
 };
 
+export async function importCss(imp: ImportMeta, name: string): Promise<CSSStyleSheet> {
+    const cssAddress = imp.resolve(name)
+    var cssRequest = await fetch(cssAddress);
+    if (!cssRequest.ok) throw new Error(`Could not load '${cssAddress}'.`);
+    return await new CSSStyleSheet({ baseURL: import.meta.url }).replace(await cssRequest.text())
+}

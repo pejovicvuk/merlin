@@ -1,5 +1,5 @@
-import { createNewElementName, getNestedHtmlElements, postEvent, ensureEventOfType } from './unit-test-interfaces'
-import { HtmlControlCore } from '../lib/html-control-core'
+import { createNewElementName, getNestedHtmlElements, postEvent, ensureEventOfType } from './unit-test-interfaces.js'
+import { HtmlControlCore } from '../lib/html-control-core.js'
 
 class HtmlControlWithEventTracking extends HtmlControlCore {
     override onConnectedToDom(): void {

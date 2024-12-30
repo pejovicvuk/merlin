@@ -1,7 +1,7 @@
-import { testArrayTrackingBasics1, testArrayTrackingBasics2 } from './array-tracking-tests';
-import { registerParentAndChild, registerParentThenChild, registerChildThenParent, registerGrandparentAndChildThenParent } from './html-control-core-tests';
-import { testBasicControl, testModel } from './html-control-tests';
-import { throwIfHasEvents } from './unit-test-interfaces';
+import { testArrayTrackingBasics1, testArrayTrackingBasics2 } from './array-tracking-tests.js';
+import { registerParentAndChild, registerParentThenChild, registerChildThenParent, registerGrandparentAndChildThenParent } from './html-control-core-tests.js';
+import { testBasicControl, testModel } from './html-control-tests.js';
+import { throwIfHasEvents } from './unit-test-interfaces.js';
 
 const results = document.getElementById('results') as HTMLDivElement;
 const playground = document.getElementById('test-playground') as HTMLDivElement;

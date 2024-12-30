@@ -1,0 +1,8 @@
+:host {
+    display: inline-flex;
+    align-items: baseline;
+}
+
+label {
+    flex: 1 0 auto;
+}

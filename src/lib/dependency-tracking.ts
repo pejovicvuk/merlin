@@ -1,4 +1,4 @@
-import { indexOfPair, indexOfTriplet, removePair } from "./algorithms";
+import { indexOfPair, indexOfTriplet, removePair } from "./algorithms.js";
 
 type ChangeListener<T> = (token: T) => void;
 

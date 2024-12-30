@@ -1,7 +1,7 @@
-import { sleepAsync } from '../lib/algorithms';
-import { toTracked } from '../lib/dependency-tracking';
-import { HtmlControl } from '../lib/html-control';
-import '../lib/register-controls';
+import { sleepAsync } from '../lib/algorithms.js';
+import { toTracked } from '../lib/dependency-tracking.js';
+import { HtmlControl } from '../lib/html-control.js';
+import '../lib/register-controls.js';
 
 class TextModel {
     // check boxes

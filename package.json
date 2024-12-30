@@ -1,0 +1,16 @@
+{
+  "name": "merlin",
+  "version": "1.0.0",
+  "main": "index.ts",
+  "repository": "https://github.com/djelovic/merlin.git",
+  "author": "Dejan Jelovic <dejan@jelovic.com>",
+  "license": "MIT",
+  "private": false,
+  "devDependencies": {
+    "copyfiles": "^2.4.1",
+    "typescript": "^5.7.2"
+  },
+  "scripts": {
+    "build": "tsc -p  ./src/tsconfig.json && copyfiles -u 1 src/**/*.css dst"
+  }
+}

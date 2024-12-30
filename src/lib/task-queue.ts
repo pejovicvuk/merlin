@@ -1,4 +1,4 @@
-import { CircularBuffer } from "./circular-buffer";
+import { CircularBuffer } from "./circular-buffer.js";
 
 export type Task<T> = (arg: T) => void;
 

@@ -53,3 +53,82 @@ export function sleepAsync(ms: number, signal?: AbortSignal) {
         signal?.addEventListener('abort', abortHandler);
     });
 }
+
+export class AsyncDemux<R> {
+    readonly #ac: AbortController;
+    readonly #waiters: { resolve: (arg: R) => any; reject: (reason: any) => any; signal?: AbortSignal }[] = [];
+    readonly #done?: () => void;
+    readonly #completed?: (result: R) => void;
+
+    constructor(promise: Promise<R>, ac: AbortController, done?: () => void, completed?: (result: R) => void) {
+        this.#ac = ac;
+        this.#waitOnPromise(promise);
+        this.#done = done;
+        this.#completed = completed;
+    }
+
+    async #waitOnPromise(promise: Promise<R>) {
+        try {
+            const result = await promise;
+
+            for (const { resolve, signal } of this.#waiters) {
+                signal?.removeEventListener('abort', this.#onSignalAborted);
+                try {
+                    resolve(result);
+                }
+                catch(ex) {
+                    console.error(ex);
+                }
+            }
+
+            if (this.#waiters.length > 0) this.#completed?.(result);
+        }
+        catch(reason: any) {
+            for (const { reject, signal } of this.#waiters) {
+                signal?.removeEventListener('abort', this.#onSignalAborted);
+                try {
+                    reject(reason);
+                }
+                catch(ex) {
+                    console.error(ex);
+                }
+            }
+        }
+
+        if (this.#waiters.length > 0) this.#done?.();
+    }
+
+    addCaller(signal?: AbortSignal): Promise<R> {
+        if (signal?.aborted) return Promise.reject(signal);
+
+        const ret = new Promise<R>((resolve, reject) => {
+            if (signal?.aborted) {
+                reject(signal);
+            }
+            else {
+                this.#waiters.push({ resolve, reject, signal });
+                signal?.addEventListener('abort', this.#onSignalAborted);
+            }
+        });
+
+        return ret;
+    }
+
+    readonly #onSignalAborted = () => {
+        const wait = this.#waiters;
+        let len = wait.length;
+        while(len-- > 0) {
+            const { reject, signal } = wait[len];
+            if (signal?.aborted) {
+                wait[len] = wait[wait.length - 1];
+                wait.pop()!
+                reject(signal);
+            }
+        }
+
+        if (wait.length === 0) {
+            this.#done?.();
+            this.#ac.abort();
+        }
+    }
+}

@@ -66,27 +66,6 @@ function propagatePropertyChange(element: HtmlControlCore, name: string) {
     propagatePropertyChangeInternal(element, name, getHasExplicitPropertyName(name), propertyNameToAttributeName(name));
 }
 
-export function bindable(...properties: string[]) {
-    return function<BC extends abstract new (...args: any) => any = abstract new (...args: any) => any> (target: BC, context: ClassDecoratorContext<BC>) {
-        if (properties.length === 0) return;
-
-        context.addInitializer(() => {
-            if (target.name === "BindableControl") {
-                console.log('target is a function');
-            }
-
-            const ctl = target as { bindableProperties?: string[]; };
-
-            if (!Object.hasOwn(ctl, 'bindableProperties')) {
-                ctl.bindableProperties = ctl.bindableProperties !== undefined ? [...ctl.bindableProperties, ...properties] : [...properties];
-            }
-            else {
-                ctl.bindableProperties!.push(...properties);
-            }
-        });
-    };
-}
-
 export function setOrRemoveAttribute(element: Element, qualifiedName: string, val: string | null) {
     if (val !== null) {
         element.setAttribute(qualifiedName, val);

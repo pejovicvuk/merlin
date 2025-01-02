@@ -1,4 +1,5 @@
 import { testArrayTrackingBasics1, testArrayTrackingBasics2 } from './array-tracking-tests.js';
+import { testAsyncDemuxBothCancelled, testAsyncDemuxBothCompleted, testAsyncDemuxOneCancelledOneRuns } from './async-tests.js';
 import { registerParentAndChild, registerParentThenChild, registerChildThenParent, registerGrandparentAndChildThenParent } from './html-control-core-tests.js';
 import { testBasicControl, testModel } from './html-control-tests.js';
 import { throwIfHasEvents } from './unit-test-interfaces.js';
@@ -6,7 +7,7 @@ import { throwIfHasEvents } from './unit-test-interfaces.js';
 const results = document.getElementById('results') as HTMLDivElement;
 const playground = document.getElementById('test-playground') as HTMLDivElement;
 
-function runTest(name: string, test: (playground: HTMLDivElement) => string | undefined | void) {
+async function runTest(name: string, test: (playground: HTMLDivElement) => string | undefined | Promise<string | void | undefined> | void) {
     playground.innerHTML = '';
 
     const div = document.createElement('div');
@@ -14,7 +15,8 @@ function runTest(name: string, test: (playground: HTMLDivElement) => string | un
 
     results.appendChild(div);
     try {
-        const maybeError = test(playground);
+        const maybePromise = test(playground);
+        const maybeError = maybePromise instanceof Promise ? await maybePromise : maybePromise;
         if (typeof maybeError !== 'string') {
             div.className = 'success';
         }
@@ -35,14 +37,18 @@ function runTest(name: string, test: (playground: HTMLDivElement) => string | un
     }    
 }
 
-runTest('Array tracking', testArrayTrackingBasics1);
-runTest('Array tracking', testArrayTrackingBasics2);
-runTest('Register parent and child.', registerParentAndChild);
-runTest('Register parent then child.', registerParentThenChild);
-runTest('Register child then parent.', registerChildThenParent);
-runTest('Register grandparent and child then parent', registerGrandparentAndChildThenParent);
-runTest('Basic control', testBasicControl);
-runTest('Control model', testModel);
+await runTest('Array tracking', testArrayTrackingBasics1);
+await runTest('Array tracking', testArrayTrackingBasics2);
+await runTest('Register parent and child.', registerParentAndChild);
+await runTest('Register parent then child.', registerParentThenChild);
+await runTest('Register child then parent.', registerChildThenParent);
+await runTest('Register grandparent and child then parent', registerGrandparentAndChildThenParent);
+await runTest('Basic control', testBasicControl);
+await runTest('Control model', testModel);
+
+await runTest('Async demux test one aborted, other runs.', testAsyncDemuxOneCancelledOneRuns);
+await runTest('Async demux test both aborted', testAsyncDemuxBothCancelled);
+await runTest('Async demux test both completed', testAsyncDemuxBothCompleted);
 
 const done = document.createElement('div');
 done.innerText = 'Done.'

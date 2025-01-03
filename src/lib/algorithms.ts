@@ -54,17 +54,16 @@ export function sleepAsync(ms: number, signal?: AbortSignal) {
     });
 }
 
+
 export class AsyncDemux<R> {
     readonly #ac: AbortController;
     readonly #waiters: { resolve: (arg: R) => any; reject: (reason: any) => any; signal?: AbortSignal }[] = [];
-    readonly #done?: () => void;
-    readonly #completed?: (result: R) => void;
+    readonly #done?: ((hasResult: true, result: R) => void) & ((hasResult: false) => void);
 
-    constructor(promise: Promise<R>, ac: AbortController, done?: () => void, completed?: (result: R) => void) {
+    constructor(promise: Promise<R>, ac: AbortController, done?: ((hasResult: true, result: R) => void) & ((hasResult: false) => void)) {
         this.#ac = ac;
         this.#waitOnPromise(promise);
         this.#done = done;
-        this.#completed = completed;
     }
 
     async #waitOnPromise(promise: Promise<R>) {
@@ -81,7 +80,7 @@ export class AsyncDemux<R> {
                 }
             }
 
-            if (this.#waiters.length > 0) this.#completed?.(result);
+            if (this.#waiters.length > 0) this.#done?.(true, result);
         }
         catch(reason: any) {
             for (const { reject, signal } of this.#waiters) {
@@ -93,9 +92,9 @@ export class AsyncDemux<R> {
                     console.error(ex);
                 }
             }
-        }
 
-        if (this.#waiters.length > 0) this.#done?.();
+            if (this.#waiters.length > 0) this.#done?.(false);
+        }
     }
 
     addCaller(signal?: AbortSignal): Promise<R> {
@@ -127,7 +126,7 @@ export class AsyncDemux<R> {
         }
 
         if (wait.length === 0) {
-            this.#done?.();
+            this.#done?.(false);
             this.#ac.abort();
         }
     }

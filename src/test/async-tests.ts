@@ -11,7 +11,12 @@ export async function testAsyncDemuxOneCancelledOneRuns() {
 
     const ac = new AbortController();
     const get5Async = sleepAndReturn(5, 100, ac.signal);
-    const demux = new AsyncDemux(get5Async, ac, () => ++demuxDone, (x: number) => five = x);
+    const demux = new AsyncDemux(get5Async, ac, (hasResult: boolean, result?: number) => {
+        ++demuxDone;
+        if (hasResult) {
+            five = result!;
+        }
+    });
 
     const ac1 = new AbortController();
     const c1 = demux.addCaller(ac1.signal);
@@ -36,11 +41,11 @@ export async function testAsyncDemuxOneCancelledOneRuns() {
 }
 
 export async function testAsyncDemuxBothCancelled() {
-    let demuxDone = false;
+    let demuxDone = 0;
 
     const ac = new AbortController();
     const get5Async = sleepAndReturn(5, 6000000, ac.signal);
-    const demux = new AsyncDemux(get5Async, ac, () => demuxDone = true);
+    const demux = new AsyncDemux(get5Async, ac, () => ++demuxDone);
 
     const ac1 = new AbortController();
     const c1 = demux.addCaller(ac1.signal);
@@ -72,7 +77,7 @@ export async function testAsyncDemuxBothCancelled() {
     catch {
     }
 
-    if (!demuxDone) throw "Expected demux to be done."
+    if (demuxDone !== 1) throw "Expected demux to be done."
 }
 
 export async function testAsyncDemuxBothCompleted() {
@@ -81,7 +86,12 @@ export async function testAsyncDemuxBothCompleted() {
 
     const ac = new AbortController();
     const get5Async = sleepAndReturn(5, 100, ac.signal);
-    const demux = new AsyncDemux(get5Async, ac, () => ++demuxDone, (x: number) => five = x);
+    const demux = new AsyncDemux(get5Async, ac, (hasResult: boolean, result?: number) => {
+        ++demuxDone;
+        if (hasResult) {
+            five = result!;
+        }
+    });
 
     const ac1 = new AbortController();
     const c1 = demux.addCaller(ac1.signal);
@@ -94,5 +104,5 @@ export async function testAsyncDemuxBothCompleted() {
     if (await c2 !== 5) throw "Expected c1 to be 5";
     if (await get5Async !== 5) throw "Expected get5Async to be 5";
     if (five !== 5) throw "Expected five to be 5.";
-    if (demuxDone !== 1) throw "Expected demux to be 1."
+    if (demuxDone !== 1) throw "Expected demux to be 1.";
 }

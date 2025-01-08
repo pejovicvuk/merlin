@@ -1,4 +1,4 @@
-import { AsyncDemux, sleepAsync } from "../lib/algorithms.js";
+import { AsyncDemux, AsyncDemuxState, sleepAsync } from "../lib/algorithms.js";
 
 async function sleepAndReturn<T>(result: T, ms: number, signal?: AbortSignal) {
     await sleepAsync(ms, signal);
@@ -11,9 +11,9 @@ export async function testAsyncDemuxOneCancelledOneRuns() {
 
     const ac = new AbortController();
     const get5Async = sleepAndReturn(5, 100, ac.signal);
-    const demux = new AsyncDemux(get5Async, ac, (hasResult: boolean, result?: number) => {
+    const demux = new AsyncDemux(get5Async, ac, (state: AsyncDemuxState, result: any) => {
         ++demuxDone;
-        if (hasResult) {
+        if (state === AsyncDemuxState.Completed) {
             five = result!;
         }
     });
@@ -86,10 +86,10 @@ export async function testAsyncDemuxBothCompleted() {
 
     const ac = new AbortController();
     const get5Async = sleepAndReturn(5, 100, ac.signal);
-    const demux = new AsyncDemux(get5Async, ac, (hasResult: boolean, result?: number) => {
+    const demux = new AsyncDemux(get5Async, ac, (state: AsyncDemuxState, result: any) => {
         ++demuxDone;
-        if (hasResult) {
-            five = result!;
+        if (state === AsyncDemuxState.Completed) {
+            five = result;
         }
     });
 

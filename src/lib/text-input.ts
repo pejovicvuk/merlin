@@ -31,7 +31,6 @@ export class TextInput extends InputControl implements
     constructor() {
         super();
         const shadow = this.attachShadow({ mode: 'open' });
-        shadow.adoptedStyleSheets = [styleSheet]
         shadow.innerHTML = '<input part="input">';
         this.addEventListener('input', TextInput.#onInput);
     }
@@ -147,6 +146,11 @@ export class TextInput extends InputControl implements
         else {
             super.attributeChangedCallback(name, oldValue, newValue);
         }
+    }
+
+    override onConnectedToDom(): void {
+        this.shadowRoot!.adoptedStyleSheets = [styleSheet];
+        super.onConnectedToDom();
     }
 }
 

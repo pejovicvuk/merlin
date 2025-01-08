@@ -11,7 +11,6 @@ export class CheckBox extends InputControl implements
     constructor() {
         super();
         const shadow = this.attachShadow({ mode: 'open' });
-        shadow.adoptedStyleSheets = [styleSheet];
         shadow.innerHTML = '<input id="input" type="checkbox" part="input"><label for="input" part="label"><slot></slot></label>';
         this.input.addEventListener('change', CheckBox.#onChange);
     }
@@ -55,6 +54,12 @@ export class CheckBox extends InputControl implements
         else {
             super.attributeChangedCallback(name, oldValue, newValue);
         }
+    }
+
+    override onConnectedToDom(): void {
+        this.shadowRoot!.adoptedStyleSheets = [styleSheet];
+
+        super.onConnectedToDom();
     }
 }
 

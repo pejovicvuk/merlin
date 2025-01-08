@@ -12,8 +12,7 @@ export class RadioButton extends InputControl implements
     constructor() {
         super();
         const shadow = this.attachShadow({ mode: 'open' });
-        shadow.adoptedStyleSheets = [styleSheet];
-        this.shadowRoot!.innerHTML = '<input id="input" type="radio" part="input"><label for="input" part="label"><slot></slot></label>';
+        shadow.innerHTML = '<input id="input" type="radio" part="input"><label for="input" part="label"><slot></slot></label>';
         this.input.addEventListener('change', RadioButton.#onChange);
     }
 
@@ -55,6 +54,11 @@ export class RadioButton extends InputControl implements
 
     static #onChange(ev: Event) {
         ((((ev.currentTarget as Element).parentNode) as ShadowRoot).host as RadioButton).#onChangeImpl();
+    }
+
+    override onConnectedToDom(): void {
+        this.shadowRoot!.adoptedStyleSheets = [styleSheet];
+        super.onConnectedToDom();
     }
 }
 

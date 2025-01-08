@@ -54,13 +54,16 @@ export function sleepAsync(ms: number, signal?: AbortSignal) {
     });
 }
 
+export const enum AsyncDemuxState {
+    Cancelled, Completed, Rejected
+}
 
 export class AsyncDemux<R> {
     readonly #ac: AbortController;
     readonly #waiters: { resolve: (arg: R) => any; reject: (reason: any) => any; signal?: AbortSignal }[] = [];
-    readonly #done?: ((hasResult: true, result: R) => void) & ((hasResult: false) => void);
+    readonly #done?: (state: AsyncDemuxState, result?: any) => void;
 
-    constructor(promise: Promise<R>, ac: AbortController, done?: ((hasResult: true, result: R) => void) & ((hasResult: false) => void)) {
+    constructor(promise: Promise<R>, ac: AbortController, done?: (state: AsyncDemuxState, result?: any) => void) {
         this.#ac = ac;
         this.#waitOnPromise(promise);
         this.#done = done;
@@ -80,7 +83,7 @@ export class AsyncDemux<R> {
                 }
             }
 
-            if (this.#waiters.length > 0) this.#done?.(true, result);
+            if (this.#waiters.length > 0) this.#done?.(AsyncDemuxState.Completed, result);
         }
         catch(reason: any) {
             for (const { reject, signal } of this.#waiters) {
@@ -93,7 +96,7 @@ export class AsyncDemux<R> {
                 }
             }
 
-            if (this.#waiters.length > 0) this.#done?.(false);
+            if (this.#waiters.length > 0) this.#done?.(AsyncDemuxState.Rejected, reason);
         }
     }
 
@@ -126,8 +129,42 @@ export class AsyncDemux<R> {
         }
 
         if (wait.length === 0) {
-            this.#done?.(false);
+            this.#done?.(AsyncDemuxState.Cancelled);
             this.#ac.abort();
+        }
+    }
+}
+
+export abstract class AsyncDemux1<T1, R>  {
+    readonly #running = new Map<T1, AsyncDemux<R>>();
+    #completed?: Map<T1, Promise<R>>;
+
+    protected abstract callReal(arg1: T1, signal: AbortSignal): Promise<R>;
+
+    constructor(keepCompleted: boolean) {
+        if (keepCompleted) this.#completed = new Map();
+    }
+
+    call(arg1: T1, signal?: AbortSignal): Promise<R> {
+        const existing = this.#completed?.get(arg1);
+        if (existing !== undefined) {
+            return existing;
+        }
+        else {
+            const ac = new AbortController();
+            const real = this.callReal(arg1, ac.signal);
+
+            const demux = new AsyncDemux<R> (real, ac, (state: AsyncDemuxState, result: any) => {
+                this.#running.delete(arg1);
+                if (this.#completed !== undefined) {
+                    if (state === AsyncDemuxState.Completed) this.#completed.set(arg1, Promise.resolve(result));
+                    else if (state === AsyncDemuxState.Rejected) this.#completed.set(arg1, Promise.reject(result));
+                }
+            });
+
+            this.#running.set(arg1, demux);
+
+            return demux.addCaller(signal);
         }
     }
 }

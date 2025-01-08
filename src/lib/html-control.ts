@@ -1,5 +1,5 @@
-import { map } from "./algorithms.js";
-import { AmbientProperty, BindableControl, BindableProperty } from "./bindable-control.js";
+import { AsyncDemux1, map } from "./algorithms.js";
+import { AmbientProperty, BindableControl, BindableProperty, setOrRemoveAttribute } from "./bindable-control.js";
 import { cancelTaskExecution, enqueTask } from "./task-queue.js";
 
 function callHandler(event: Event, type: string) {
@@ -47,6 +47,18 @@ function getChangedHanlderName(property: string) {
     return ret;
 }
 
+class CssDownloader extends AsyncDemux1<string, CSSStyleSheet> {
+    protected override async callReal(address: string, signal: AbortSignal): Promise<CSSStyleSheet> {
+        var cssRequest = await fetch(address, { signal });
+        if (!cssRequest.ok) throw new Error(`Could not load '${address}'.`);
+        return await new CSSStyleSheet({ baseURL: document.URL }).replace(await cssRequest.text());
+    }
+    
+}
+
+const cssDownloader = new CssDownloader(true);
+
+
 export class HtmlControl extends BindableControl implements
     HtmlControlBindableProperty<'classes', string | undefined>,
     HtmlControlAmbientProperty<'disabled', boolean | undefined>  {
@@ -56,7 +68,7 @@ export class HtmlControl extends BindableControl implements
 
     static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes'];
     static override ambientProperties = [...BindableControl.ambientProperties, 'disabled'];
-    static override readonly additionalAttributes = [...BindableControl.additionalAttributes, ...map(events, x => 'on-' + x)];
+    static override readonly additionalAttributes = [...BindableControl.additionalAttributes, 'style-sheets', ...map(events, x => 'on-' + x)];
 
     get classes() {
         return this.getProperty<string | undefined>('classes', undefined);
@@ -106,6 +118,18 @@ export class HtmlControl extends BindableControl implements
     onDisabledChanged() {
     }
 
+    get styleSheets() {
+        return this.getAttribute('style-sheets');
+    }
+
+    set styleSheets(s: string | null) {
+        setOrRemoveAttribute(this, 'style-sheets', s);
+    }
+
+    onStyleSheetsChanged() {
+        this.#evaluateStyleSheets();
+    }
+
     #evaluatePropertyCallbackImpl(property: string): void {
         this.#scheduledEvaluations.delete(property);
         const handler = (this as Record<string, any>)[getChangedHanlderName(property)];
@@ -124,6 +148,69 @@ export class HtmlControl extends BindableControl implements
         super.onPropertyChanged(property);
     }
 
+    #styleSheetDownloadController?: AbortController;
+
+    async #evaluateStyleSheets() {
+        if (this.isPartOfDom && this.shadowRoot !== null && this.styleSheets !== null) {
+            const ac = new AbortController();
+            this.#styleSheetDownloadController?.abort()
+            this.#styleSheetDownloadController = ac;
+
+            const ss = this.styleSheets;
+        
+            let start = 0;
+            while(start < ss.length && !ac.signal.aborted) {
+                const maybeSpace = ss.indexOf(' ', start);
+                const space = maybeSpace < 0 ? ss.length : maybeSpace;
+                if (space === start) {
+                    ++start;
+                    continue;
+                }
+                else {
+                    const id = ss.substring(start, space);
+
+                    const link = document.getElementById(id);
+                    if (link !== null && link instanceof HTMLLinkElement && link.rel === 'stylesheet' && link.href != '') {
+                        try {
+                            const sheet = await cssDownloader.call(link.href, ac.signal);
+                            if (!ac.signal.aborted) {
+                                this.shadowRoot.adoptedStyleSheets.push(sheet);
+                            }
+                        }
+                        catch(reason) {
+                            if (!ac.signal.aborted) console.error(reason);
+                        }
+                    }
+
+                    start = space + 1;
+                }
+            }
+
+            if (ac === this.#styleSheetDownloadController) this.#styleSheetDownloadController = undefined;
+        }
+        else {
+            this.shadowRoot?.adoptedStyleSheets.splice(0);
+
+            this.#styleSheetDownloadController?.abort();
+            this.#styleSheetDownloadController = undefined;
+        }
+
+    }
+
+    override attachShadow(init: ShadowRootInit): ShadowRoot {
+        const ret = super.attachShadow(init);
+
+        this.#evaluateStyleSheets();
+
+        return ret;
+    }
+
+    override onConnectedToDom(): void {
+        super.onConnectedToDom();
+
+        this.#evaluateStyleSheets();
+    }
+
     override onDisconnectedFromDom(): void {
         for (const taskId of this.#scheduledEvaluations.values()) {
             cancelTaskExecution(taskId);
@@ -131,25 +218,34 @@ export class HtmlControl extends BindableControl implements
 
         this.#scheduledEvaluations.clear();
 
+        this.#styleSheetDownloadController?.abort();
+        this.#styleSheetDownloadController = undefined;
+
         super.onDisconnectedFromDom();
     }
 
     override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
         super.attributeChangedCallback(name, oldValue, newValue);
 
-        const func = eventsToEventHandlers.get(name);
-        if (func !== undefined) {
-            const event = name.substring(3);
+        if (name == 'style-sheets') {
+            this.#evaluateStyleSheets();
+        }
+        else {
+            const func = eventsToEventHandlers.get(name);
+            if (func !== undefined) {
+                const event = name.substring(3);
 
-            if (oldValue === null && newValue !== null) {
-                this.addEventListener(event, func);
-            }
-            else if (oldValue !== null && newValue === null) {
-                this.removeEventListener(event, func);
+                if (oldValue === null && newValue !== null) {
+                    this.addEventListener(event, func);
+                }
+                else if (oldValue !== null && newValue === null) {
+                    this.removeEventListener(event, func);
+                }
             }
         }
     }
-};
+
+}
 
 export async function importCss(imp: ImportMeta, name: string): Promise<CSSStyleSheet> {
     const cssAddress = imp.resolve(name)

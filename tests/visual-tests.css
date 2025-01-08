@@ -48,7 +48,3 @@ body {
 items-control::part(container) {
     background-color: aliceblue;
 }
-
-text-control {
-    color: red;
-}

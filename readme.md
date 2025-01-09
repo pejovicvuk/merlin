@@ -10,7 +10,7 @@ In practice, that means that you get a set of new tags that  automatically refle
 <check-box checked="this.blue">Blue</check-box>
 ```
 
-give you three check boxes, which are controlled by this model behind the scenes:
+give you three check boxes:
 
  ![Checkboxes](/docs/checkboxes.png)
 

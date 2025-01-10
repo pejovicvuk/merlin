@@ -1,5 +1,5 @@
 {
-  "name": "merlin",
+  "name": "@trilogyes/merlin",
   "version": "0.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -7,7 +7,6 @@
   "repository": "https://github.com/Trilogy-Energy-Software/merlin",
   "author": "Dejan Jelovic <dejanj@trilogyes.com>",
   "license": "MIT",
-  "private": false,
   "devDependencies": {
     "copyfiles": "^2.4.1",
     "typescript": "^5.7.2"

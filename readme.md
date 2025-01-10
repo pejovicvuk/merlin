@@ -1,6 +1,6 @@
 # Merlin
 
-Merlin is a library of UI [web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components) that support data binding. The data binding is implemented very efficiently using [proxies](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy).
+Merlin is a library of UI [web components](https://developer.mozilla.org/en-US/docs/Web/API/Web_components) that support data binding. The data binding is very sophisticated and efficient, implemented using [proxies](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy).
 
 In practice, that means that you get a set of new tags that  automatically reflect and update your model. For example, the following three tags:
 
@@ -36,3 +36,4 @@ give you three check boxes:
 ```
 
 This implements the model for the red, blue and 'red and blue' tri-state checkbox. Note that there is no need to tell the UI when something changes - our proxy observer handles that, including the automatic update of the redAndBlue property when either red or blue fields are changed.
+

@@ -1,6 +1,6 @@
-export const parentOrDepthTag: unique symbol = Symbol('parentOrDepth');
-export const childrenTag: unique symbol = Symbol('children');
-export const connectToParentTag: unique symbol = Symbol('connectToParent');
+const parentOrDepthTag: unique symbol = Symbol('parentOrDepth');
+const childrenTag: unique symbol = Symbol('children');
+const connectToParentTag: unique symbol = Symbol('connectToParent');
 
 // Returns either the closest ancestor that is a HtmlControl, or the depth
 // from the top of the DOM.

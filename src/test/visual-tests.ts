@@ -1,6 +1,4 @@
-import { sleepAsync } from '../lib/algorithms.js';
-import { toTracked } from '../lib/dependency-tracking.js';
-import { HtmlControl } from '../lib/html-control.js';
+import { sleepAsync, toTracked, HtmlControl } from '../lib/index.js';
 import '../lib/register-controls.js';
 
 class TextModel {

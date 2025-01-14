@@ -1,5 +1,5 @@
 import { setOrRemoveAttribute } from "./bindable-control.js";
-import { HtmlControlBindableProperty, importCss } from "./html-control.js";
+import { HtmlControlBindableProperty } from "./html-control.js";
 import { InputControl } from "./input-control.js";
 
 function stringOrNumberToStringOrNull(val: string | number | undefined | null): string | null {
@@ -15,7 +15,8 @@ function toStringOrErrorOrNull(text: string | undefined | null): string | null {
         'typeof text === ' + typeof text;
 }
 
-const styleSheet = await importCss(import.meta, './radio-button.css')
+const styleSheet = new CSSStyleSheet();
+styleSheet.replaceSync(':host { display: inline-flex; flex-direction: column; }');
 
 export class TextInput extends InputControl implements
     HtmlControlBindableProperty<'text', string | undefined>,

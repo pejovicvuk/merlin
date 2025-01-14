@@ -246,10 +246,3 @@ export class HtmlControl extends BindableControl implements
     }
 
 }
-
-export async function importCss(imp: ImportMeta, name: string): Promise<CSSStyleSheet> {
-    const cssAddress = imp.resolve(name)
-    var cssRequest = await fetch(cssAddress);
-    if (!cssRequest.ok) throw new Error(`Could not load '${cssAddress}'.`);
-    return await new CSSStyleSheet({ baseURL: import.meta.url }).replace(await cssRequest.text())
-}

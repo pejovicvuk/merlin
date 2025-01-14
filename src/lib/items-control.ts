@@ -24,7 +24,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         const slot = this.#itemTemplateSlot;
         
         const maybeTemplate = slot.assignedElements({ flatten: true })[0];
-        const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-control text="this"></text-control>';
+        const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-block text="this"></text-block>';
         for (const item of this.#displayedItems) {
             const ctl = document.createElement('model-control') as HtmlControl;
             ctl.innerHTML = innerHTML;
@@ -72,7 +72,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
             const slot = this.#itemTemplateSlot;
             const maybeTemplate = slot.assignedElements({ flatten: true })[0];
-            const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-control text="this"></text-control>';
+            const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-block text="this"></text-block>';
             for (const item of items) {
                 const ctl = document.createElement('model-control') as HtmlControl;
                 ctl.innerHTML = innerHTML;
@@ -98,7 +98,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
         const slot = this.#itemTemplateSlot;
         const maybeTemplate = slot.assignedElements({ flatten: true })[0];
-        const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-control text="this"></text-control>';
+        const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-block text="this"></text-block>';
         while(inserted-- > 0) {
             const ctl = document.createElement('model-control') as HtmlControl;
             ctl.innerHTML = innerHTML;

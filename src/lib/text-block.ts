@@ -1,6 +1,6 @@
 import { HtmlControl, HtmlControlBindableProperty } from "./html-control.js";
 
-export class TextControl extends HtmlControl implements HtmlControlBindableProperty<'text', any> {
+export class TextBlock extends HtmlControl implements HtmlControlBindableProperty<'text', any> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'text'];
 
     constructor() {

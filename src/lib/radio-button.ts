@@ -1,7 +1,8 @@
-import { HtmlControlBindableProperty, importCss } from "./html-control.js";
+import { HtmlControlBindableProperty } from "./html-control.js";
 import { InputControl } from "./input-control.js";
 
-const styleSheet = await importCss(import.meta, './radio-button.css')
+const styleSheet = new CSSStyleSheet();
+styleSheet.replaceSync(':host { display: inline-flex; align-items: baseline; } label { flex: 1 0 auto; }');
 
 export class RadioButton extends InputControl implements
     HtmlControlBindableProperty<'value', any | undefined>, 

@@ -6,7 +6,7 @@ export { HtmlControl, HtmlControlAmbientProperty, HtmlControlBindableProperty} f
 export { InputControl } from './input-control.js';
 export { ItemsControl } from './items-control.js';
 export { RadioButton } from './radio-button.js';
-export { TextControl } from './text-control.js';
+export { TextBlock } from './text-block.js';
 export { TextInput } from './text-input.js';
 export { toTracked, IChangeTracker, IArrayChangeTracker, addArrayListener, addListener, removeArrayListener, removeListener, getTracker } from './dependency-tracking.js';
 import './register-controls.js';

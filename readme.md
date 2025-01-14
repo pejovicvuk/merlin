@@ -37,3 +37,16 @@ give you three check boxes:
 
 This implements the model for the red, blue and 'red and blue' tri-state checkbox. Note that there is no need to tell the UI when something changes - our proxy observer handles that, including the automatic update of the redAndBlue property when either red or blue fields are changed.
 
+## Installation
+
+Merlin is available as a public NPM package @trilogyes/merlin. To install it execute:
+
+```bash
+npm install @trilogyes/merlin
+```
+
+or if you are using yarn:
+
+```bash
+yarn add @trilogyes/merlin
+```

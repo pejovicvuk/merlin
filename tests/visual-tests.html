@@ -14,8 +14,8 @@
         <div class="form">
             <span>Input:</span><text-input type="text" text="this.text" hint="this.hint"></text-input>
             <span>Input:</span><text-input type="search" text="this.text" hint="this.hint"></text-input>
-            <span>Text:</span><text-control class="border-1px" text="this.text" classes="this.oddOrEven"
-                on-click="this.clicked(event)">&nbsp;</text-control>
+            <span>Text:</span><text-block class="border-1px" text="this.text" classes="this.oddOrEven"
+                on-click="this.clicked(event)">&nbsp;</text-block>
         </div>
 
         <h2>Checkboxes</h2>
@@ -31,30 +31,30 @@
 
         <h2>Pickers</h2>
         <div class="picker">
-            Time <text-input type="time" text="this.time" required></text-input> read as: <text-control
-                text="this.time"></text-control>
+            Time <text-input type="time" text="this.time" required></text-input> read as: <text-block
+                text="this.time"></text-block>
         </div>
         <div class="picker">
             Date <text-input type="date" text="this.date" min="this.minDate" max="this.maxDate"
-                is-valid="this.isDateValid"></text-input> read as: <text-control text="this.dateCheck"></text-control>
+                is-valid="this.isDateValid"></text-input> read as: <text-block text="this.dateCheck"></text-block>
         </div>
         <div class="picker">
-            Color <text-input type="color" text="this.color"></text-input> read as: <text-control
-                text="this.color"></text-control>
+            Color <text-input type="color" text="this.color"></text-input> read as: <text-block
+                text="this.color"></text-block>
         </div>
         <div class="picker">
-            Month <text-input type="month" text="this.month"></text-input> read as: <text-control
-                text="this.month"></text-control>
+            Month <text-input type="month" text="this.month"></text-input> read as: <text-block
+                text="this.month"></text-block>
         </div>
 
         <h2>Number</h2>
         Enter number from 0 to 10: <text-input type="number" size="20" text="this.number" min="0" max="10" step="2"
-            is-valid="this.numberValid"></text-input> Valid: <text-control text="this.numberValid"></text-control>
+            is-valid="this.numberValid"></text-input> Valid: <text-block text="this.numberValid"></text-block>
 
         <h2>Validity</h2>
         Enter email: <text-input type="text" size="20" text="this.email" custom-validity="this.emailCustomValidity"
-            is-valid="this.isEmailValid"></text-input> Valid: <text-control
-            text="this.emailValidationMessage"></text-control>
+            is-valid="this.isEmailValid"></text-input> Valid: <text-block
+            text="this.emailValidationMessage"></text-block>
 
         <h2>Enable/Disable</h2>
         <div>
@@ -65,7 +65,7 @@
         <items-control id="numbers" items="this.array" inherit-styles="true">
             <template slot="item-template">
                 <div part="item">
-                    <text-control text="this" part="item text"></text-control>
+                    <text-block text="this" part="item text"></text-block>
                 </div>
             </template>
         </items-control>

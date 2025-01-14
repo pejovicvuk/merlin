@@ -27,7 +27,7 @@ text-input::part(input) {
     padding: 0.2em 0.5ch;
 }
 
-text-control {
+text-block {
     padding: 0.2em 0.5ch;
     white-space: pre;
 }

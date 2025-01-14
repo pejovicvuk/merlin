@@ -16,7 +16,7 @@ function toStringOrErrorOrNull(text: string | undefined | null): string | null {
 }
 
 const styleSheet = new CSSStyleSheet();
-styleSheet.replaceSync(':host { display: inline-flex; flex-direction: column; }');
+styleSheet.replaceSync(':host { display: inline-flex; flex-direction: column; } input { flex: 1 1 auto; }');
 
 export class TextInput extends InputControl implements
     HtmlControlBindableProperty<'text', string | undefined>,

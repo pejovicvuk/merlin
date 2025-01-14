@@ -174,6 +174,10 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         try {
             const thisVal = name === 'model' ? undefined : this.model;
 
+            if (name !== 'model' && attr.indexOf('this') >= 0) {
+                registerAccess(this, 'model');
+            }
+
             const func = Function("element", "self", "window", "globals", "console", "top", `"use strict";return (${attr});`);
             const val = func.call(thisVal, this);
         

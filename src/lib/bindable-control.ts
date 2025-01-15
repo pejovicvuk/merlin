@@ -331,7 +331,9 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
     }
 
     notifyInheritedPropertyChanged(name: string) {
-        this.#notifyListeners(name);
+        if (this.#clearBindingCache(name)) {
+            this.#notifyListeners(name);
+        }
     }
 
     get model() {

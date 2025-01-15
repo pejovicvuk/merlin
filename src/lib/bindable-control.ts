@@ -52,7 +52,7 @@ function propagatePropertyChangeInternal(element: HtmlControlCore, name: string,
             if (hasAmbient) {
                 if (hasExplicit(child, hasExplicitPropertyName) || child.hasAttribute(attributeName)) continue;
                 
-                child.onPropertyChanged(name);
+                child.notifyInheritedPropertyChanged(name);
             }
         }
 
@@ -328,6 +328,10 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
                 propagatePropertyChange(this, name);
             }
         }
+    }
+
+    notifyInheritedPropertyChanged(name: string) {
+        this.#notifyListeners(name);
     }
 
     get model() {

@@ -14,6 +14,8 @@ export class CheckBox extends InputControl implements
         const shadow = this.attachShadow({ mode: 'open' });
         shadow.innerHTML = '<input id="input" type="checkbox" part="input"><label for="input" part="label"><slot></slot></label>';
         this.input.addEventListener('change', CheckBox.#onChange);
+
+        this.adoptdStyleSheet(styleSheet);
     }
 
     protected get input() {
@@ -57,10 +59,5 @@ export class CheckBox extends InputControl implements
         }
     }
 
-    override onConnectedToDom(): void {
-        this.shadowRoot!.adoptedStyleSheets = [styleSheet];
-
-        super.onConnectedToDom();
-    }
 }
 

@@ -65,6 +65,7 @@ export class HtmlControl extends BindableControl implements
 
     readonly #scheduledEvaluations = new Map<string, number>();
     #lastKnownClasses?: string
+    #numAdoptedStyleSheets?: number;
 
     static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes'];
     static override ambientProperties = [...BindableControl.ambientProperties, 'disabled'];
@@ -189,11 +190,12 @@ export class HtmlControl extends BindableControl implements
             if (ac === this.#styleSheetDownloadController) this.#styleSheetDownloadController = undefined;
         }
         else {
-            this.shadowRoot?.adoptedStyleSheets.splice(0);
+            this.shadowRoot?.adoptedStyleSheets.splice(this.#numAdoptedStyleSheets ?? 0);
 
             this.#styleSheetDownloadController?.abort();
             this.#styleSheetDownloadController = undefined;
         }
+
 
     }
 
@@ -245,4 +247,18 @@ export class HtmlControl extends BindableControl implements
         }
     }
 
+    adoptdStyleSheet(css: CSSStyleSheet) {
+        const idx = this.#numAdoptedStyleSheets ?? 0;
+        this.shadowRoot!.adoptedStyleSheets.splice(idx, 0, css);
+        this.#numAdoptedStyleSheets = idx + 1;
+    }
+
+    unadoptStyleSheet(css: CSSStyleSheet) {
+        const numAdopted = this.#numAdoptedStyleSheets ?? 0;
+        const idx = this.shadowRoot!.adoptedStyleSheets.indexOf(css);
+        if (idx >= 0 && idx < numAdopted) {
+            this.shadowRoot!.adoptedStyleSheets.splice(idx, 1);
+            this.#numAdoptedStyleSheets = numAdopted - 1;
+        }
+    }
 }

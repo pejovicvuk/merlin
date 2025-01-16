@@ -15,6 +15,8 @@ export class RadioButton extends InputControl implements
         const shadow = this.attachShadow({ mode: 'open' });
         shadow.innerHTML = '<input id="input" type="radio" part="input"><label for="input" part="label"><slot></slot></label>';
         this.input.addEventListener('change', RadioButton.#onChange);
+
+        this.adoptdStyleSheet(styleSheet);
     }
 
     protected get input() {
@@ -55,11 +57,6 @@ export class RadioButton extends InputControl implements
 
     static #onChange(ev: Event) {
         ((((ev.currentTarget as Element).parentNode) as ShadowRoot).host as RadioButton).#onChangeImpl();
-    }
-
-    override onConnectedToDom(): void {
-        this.shadowRoot!.adoptedStyleSheets = [styleSheet];
-        super.onConnectedToDom();
     }
 }
 

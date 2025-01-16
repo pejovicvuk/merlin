@@ -247,7 +247,7 @@ export class HtmlControl extends BindableControl implements
         }
     }
 
-    adoptdStyleSheet(css: CSSStyleSheet) {
+    adoptStyleSheet(css: CSSStyleSheet) {
         const idx = this.#numAdoptedStyleSheets ?? 0;
         this.shadowRoot!.adoptedStyleSheets.splice(idx, 0, css);
         this.#numAdoptedStyleSheets = idx + 1;

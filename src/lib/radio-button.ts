@@ -16,7 +16,7 @@ export class RadioButton extends InputControl implements
         shadow.innerHTML = '<input id="input" type="radio" part="input"><label for="input" part="label"><slot></slot></label>';
         this.input.addEventListener('change', RadioButton.#onChange);
 
-        this.adoptdStyleSheet(styleSheet);
+        this.adoptStyleSheet(styleSheet);
     }
 
     protected get input() {

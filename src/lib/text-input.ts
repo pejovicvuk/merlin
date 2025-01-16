@@ -34,7 +34,7 @@ export class TextInput extends InputControl implements
         const shadow = this.attachShadow({ mode: 'open' });
         shadow.innerHTML = '<input part="input">';
         this.addEventListener('input', TextInput.#onInput);
-        this.adoptdStyleSheet(styleSheet);
+        this.adoptStyleSheet(styleSheet);
     }
 
     protected get input() {

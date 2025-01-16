@@ -80,6 +80,10 @@ class TextModel {
     enabled = true;
 
     array = toTracked([1, 2, 3]);
+
+    onButtonClicked(ev: MouseEvent) {
+        alert('Button!');
+    }
 }
 
 const textModel = toTracked(new TextModel());

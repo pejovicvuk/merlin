@@ -46,7 +46,13 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     }
 
     onItemsChanged() {
-        const items = this.items;
+        let items: Iterable<any> | undefined;
+        try {
+            items = this.items;
+        }
+        catch {
+            items = undefined;
+        }
 
         if (items === this.#displayedItems) return;
 

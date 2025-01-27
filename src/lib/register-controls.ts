@@ -5,6 +5,8 @@ import { RadioButton } from './radio-button.js';
 import { TextBlock } from './text-block.js';
 import { TextInput } from './text-input.js';
 import { ButtonControl } from './button-control.js';
+import { PopupMenu } from './menu.js';
+import { IfElse } from './ifelse.js';
 
 customElements.define('model-control', HtmlControl);
 customElements.define('text-block', TextBlock);
@@ -13,3 +15,5 @@ customElements.define('check-box', CheckBox);
 customElements.define('radio-button', RadioButton);
 customElements.define('items-control', ItemsControl);
 customElements.define('button-control', ButtonControl);
+customElements.define('popup-menu', PopupMenu);
+customElements.define('if-else', IfElse);

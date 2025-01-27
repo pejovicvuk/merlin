@@ -249,7 +249,7 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         if (this.#clearBindingCache(name)) {
             this.#notifyListeners(name);
 
-            const ctor = this.constructor as Function & {ambientProperties?: Iterable<string>; };
+            const ctor = this.constructor as {ambientProperties?: Iterable<string>; };
             const isAmbient = ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name);
 
             if (isAmbient && !hasExplicit(this, getHasExplicitPropertyName(name))) {
@@ -267,7 +267,7 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
 
         const camel = dashToCamel(name);
 
-        const ctor = this.constructor as Function & { bindableProperties?: Iterable<string>; ambientProperties?: Iterable<string>; };
+        const ctor = this.constructor as { bindableProperties?: Iterable<string>; ambientProperties?: Iterable<string>; };
 
         const isLocal = ctor.bindableProperties !== undefined && contains(ctor.bindableProperties, camel);
         const isAmbient = ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, camel);
@@ -292,7 +292,7 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
             return this.#evaluateBinding(name);
         }
         else {
-            const ctor = this.constructor as Function & { ambientProperties?: Iterable<string>; };
+            const ctor = this.constructor as { ambientProperties?: Iterable<string>; };
             if (ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name)) {
                 registerAccess(this, ancestorsKey);
 
@@ -302,7 +302,7 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
                 let ctl = this.parentControl;
                 while (ctl !== undefined) {
                     if (ctl instanceof BindableControl) {
-                        const ctlCtor = ctl.constructor as Function & { ambientProperties?: Iterable<string>; };
+                        const ctlCtor = ctl.constructor as { ambientProperties?: Iterable<string>; };
                         if (ctlCtor.ambientProperties !== undefined && contains(ctlCtor.ambientProperties, name)) {
                             if (hasExplicit(ctl, explicitPropertyName) || ctl.hasAttribute(attr)) return (ctl as Record<string, any>)[name];
                         }
@@ -323,7 +323,7 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         this.#notifyListeners(name);
 
         if ((oldValue !== undefined) !== (newValue !== undefined) && !this.hasAttribute(propertyNameToAttributeName(name))) {
-            const ctor = this.constructor as Function & { ambientProperties?: Iterable<string>; };
+            const ctor = this.constructor as { ambientProperties?: Iterable<string>; };
             if (ctor.ambientProperties !== undefined && contains(ctor.ambientProperties, name)) {
                 propagatePropertyChange(this, name);
             }

@@ -1,5 +1,9 @@
+import { BindableControl } from "./bindable-control.js";
 import { addArrayListener, getTracker, removeArrayListener } from "./dependency-tracking.js";
 import { HtmlControl, HtmlControlBindableProperty } from "./html-control.js";
+
+const standardTemplate = document.createElement('template');
+standardTemplate.innerHTML = '<text-block text="this"></text-block>';
 
 export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'items'];
@@ -12,36 +16,45 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         shadow.innerHTML = '<slot name="item-template"></slot><div part="container"></div>';
 
         const slot = this.#itemTemplateSlot;
-        slot.addEventListener('slotchange', this.#onSlotChange);
+        slot.addEventListener('slotchange', ItemsControl.#onSlotChangeShared);
     }
 
-    #onSlotChange = () => {
+    static #onSlotChangeShared(this: HTMLSlotElement, ev: Event) {
+        ((this.parentNode as ShadowRoot).host as ItemsControl).#onSlotChange();
+        ev.stopPropagation();
+    }
+
+    #onSlotChange () {
         if (this.#displayedItems === undefined) return;
 
-        const div = this.#div;
+        const div = this.itemsContainer;
         div.innerHTML = '';
 
-        const slot = this.#itemTemplateSlot;
-        
-        const maybeTemplate = slot.assignedElements({ flatten: true })[0];
-        const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-block text="this"></text-block>';
+        const template = this.#itemTemplateContent;
         for (const item of this.#displayedItems) {
-            const ctl = document.createElement('model-control') as HtmlControl;
-            ctl.innerHTML = innerHTML;
-            ctl.model = item; // safe as we are descendant of HtmlControl so if we are created then so is HtmlControl
+            const ctl = this.createItemContainer();
+
+            ctl.append(template.cloneNode(true));
+            ctl.model = item; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
             div.appendChild(ctl);
         }
-    };
+    }
 
     get #itemTemplateSlot() {
         return this.shadowRoot!.querySelector('slot[name="item-template"]') as HTMLSlotElement;
+    }
+
+    get #itemTemplateContent(): DocumentFragment {
+        const maybeTemplate = this.#itemTemplateSlot.assignedElements({ flatten: true })[0];
+        const template = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate : standardTemplate;
+        return template.content;
     }
 
     get items() {
         return this.getProperty<Iterable<any> | undefined>('items', undefined);
     }
 
-    get #div() {
+    get itemsContainer(): HTMLElement {
         return this.shadowRoot!.querySelector('div')!
     }
 
@@ -63,7 +76,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
             }
         }
 
-        const div = this.#div;
+        const div = this.itemsContainer;
         div.innerHTML = '';
 
         this.#displayedItems = items;
@@ -76,13 +89,11 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
                 }
             }
 
-            const slot = this.#itemTemplateSlot;
-            const maybeTemplate = slot.assignedElements({ flatten: true })[0];
-            const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-block text="this"></text-block>';
+            const template = this.#itemTemplateContent;
             for (const item of items) {
-                const ctl = document.createElement('model-control') as HtmlControl;
-                ctl.innerHTML = innerHTML;
-                ctl.model = item; // safe as we are descendant of HtmlControl so if we are created then so is HtmlControl
+                const ctl = this.createItemContainer();
+                ctl.append(template.cloneNode(true));
+                ctl.model = item; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
                 div.appendChild(ctl);
             }
         }
@@ -90,7 +101,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
     #onArrayChanged = (index: number, inserted: number, deleted: number) => {
         const arr = this.#displayedItems as any[];
-        const div = this.#div;
+        const div = this.itemsContainer;
 
         let same = Math.min(inserted, deleted);
         inserted -= same;
@@ -98,17 +109,15 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
         while(same-- > 0) {
             const item = arr[index];
-            const ctl = div.children[index++] as HtmlControl;
+            const ctl = div.children[index++] as BindableControl;
             ctl.model = item;
         }
 
-        const slot = this.#itemTemplateSlot;
-        const maybeTemplate = slot.assignedElements({ flatten: true })[0];
-        const innerHTML = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate.innerHTML : '<text-block text="this"></text-block>';
+        const template = this.#itemTemplateContent;
         while(inserted-- > 0) {
-            const ctl = document.createElement('model-control') as HtmlControl;
-            ctl.innerHTML = innerHTML;
-            ctl.model = arr[index]; // safe as we are descendant of HtmlControl so if we are created then so is HtmlControl
+            const ctl = this.createItemContainer();
+            ctl.append(template.cloneNode(true));
+            ctl.model = arr[index]; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
             if (index < div.childElementCount) {
                 div.insertBefore(ctl, div.children[index++]);
             }
@@ -125,5 +134,9 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     override onDisconnectedFromDom(): void {
         super.onDisconnectedFromDom();
         this.onItemsChanged();
+    }
+
+    createItemContainer(): BindableControl {
+        return document.createElement('model-control') as BindableControl;
     }
 }

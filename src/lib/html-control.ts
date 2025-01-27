@@ -61,13 +61,15 @@ const cssDownloader = new CssDownloader(true);
 
 export class HtmlControl extends BindableControl implements
     HtmlControlBindableProperty<'classes', string | undefined>,
+    HtmlControlBindableProperty<'states', string | undefined>,
     HtmlControlAmbientProperty<'disabled', boolean | undefined>  {
 
     readonly #scheduledEvaluations = new Map<string, number>();
     #lastKnownClasses?: string
     #numAdoptedStyleSheets?: number;
+    #internals?: ElementInternals;
 
-    static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes'];
+    static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes', 'states'];
     static override ambientProperties = [...BindableControl.ambientProperties, 'disabled'];
     static override readonly additionalAttributes = [...BindableControl.additionalAttributes, 'style-sheets', ...map(events, x => 'on-' + x)];
 
@@ -129,6 +131,39 @@ export class HtmlControl extends BindableControl implements
 
     onStyleSheetsChanged() {
         this.#evaluateStyleSheets();
+    }
+
+    get states() {
+        return this.getProperty<string | undefined>('states', undefined);
+    }
+
+    onStatesChanged() {
+        let states: string | undefined = undefined;
+        if (this.isPartOfDom) {
+            try {
+                const ac = this.states;
+                states = typeof ac === 'string' ? ac : undefined;
+            }
+            catch(err) {
+                console.log(err);
+            }
+        }
+
+        if (this.#internals === undefined && states === undefined) return;
+
+        this.#internals ??= this.attachInternals();
+        
+        const real = this.#internals.states;
+        const incoming = states?.split(/ +/);
+
+        for (const state of real) {
+            if (incoming === undefined || incoming.indexOf(state) < 0) {
+                real.delete(state);
+            }
+        }
+        if (incoming !== undefined) {
+            for (const state of incoming) real.add(state);
+        }
     }
 
     #evaluatePropertyCallbackImpl(property: string): void {
@@ -195,8 +230,6 @@ export class HtmlControl extends BindableControl implements
             this.#styleSheetDownloadController?.abort();
             this.#styleSheetDownloadController = undefined;
         }
-
-
     }
 
     override attachShadow(init: ShadowRootInit): ShadowRoot {

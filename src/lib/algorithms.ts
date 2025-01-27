@@ -38,7 +38,7 @@ export function removePair<T>(arr: T[], first: T, second: T) {
     arr.splice(lastIdx, 2);
 }
 
-export function sleepAsync(ms: number, signal?: AbortSignal) {
+export function sleepAsync(ms: number, signal?: AbortSignal): Promise<void> {
     return new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
             signal?.removeEventListener('abort', abortHandler);
@@ -48,6 +48,22 @@ export function sleepAsync(ms: number, signal?: AbortSignal) {
         const abortHandler = () => {
             clearTimeout(timeout);
             reject(signal);
+        };
+
+        signal?.addEventListener('abort', abortHandler);
+    });
+}
+
+export function sleepNoThrowAsync(ms: number, signal?: AbortSignal): Promise<boolean> {
+    return new Promise<boolean>(resolve => {
+        const timeout = setTimeout(() => {
+            signal?.removeEventListener('abort', abortHandler);
+            resolve(true);
+        }, ms);
+
+        const abortHandler = () => {
+            clearTimeout(timeout);
+            resolve(false);
         };
 
         signal?.addEventListener('abort', abortHandler);

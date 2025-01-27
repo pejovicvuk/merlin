@@ -1,4 +1,5 @@
-import { sleepAsync, toTracked, HtmlControl } from '../lib/index.js';
+import { sleepAsync, toTracked, HtmlControl, MenuItem, showContextMenu } from '../lib/index.js';
+import { Corner, MenuItemSeparator } from '../lib/menu.js';
 import '../lib/register-controls.js';
 
 class TextModel {
@@ -81,8 +82,21 @@ class TextModel {
 
     array = toTracked([1, 2, 3]);
 
-    onButtonClicked(ev: MouseEvent) {
-        alert('Button!');
+    async onButtonClicked(ev: MouseEvent) {
+        ev.stopPropagation();
+
+        const items: (MenuItem | MenuItemSeparator)[] = [
+            new MenuItem('New Text File'), new MenuItem('New File...'), new MenuItem('New Window'),
+            new MenuItemSeparator(),
+            new MenuItem(
+                'Open Recent', [new MenuItem('File #1'), new MenuItem ('File #2') ]
+            ), new MenuItem('Open...')
+        ];
+
+        const loc = (ev.target as HTMLElement).getBoundingClientRect();
+
+        const ret = await showContextMenu(items.map(x => toTracked(x)), loc.left + window.scrollX, loc.bottom + window.scrollY, Corner.TopLeft);
+        console.log(ret?.content);
     }
 }
 

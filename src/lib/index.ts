@@ -10,4 +10,7 @@ export { TextBlock } from './text-block.js';
 export { TextInput } from './text-input.js';
 export { toTracked, IChangeTracker, IArrayChangeTracker, addArrayListener, addListener, removeArrayListener, removeListener, getTracker } from './dependency-tracking.js';
 export { ButtonControl } from './button-control.js';
+export { showContextMenu, MenuItem } from './menu.js';
+export { IfElse } from './ifelse.js';
+
 import './register-controls.js';

@@ -4,9 +4,9 @@ import { HtmlControl } from "./html-control.js";
 export abstract class InputControl extends HtmlControl {
     protected abstract get input(): HTMLInputElement;
 
-    override onDisabledChanged() {
+    override onEnabledChanged() {
         try {
-            setOrRemoveAttribute(this.input, 'disabled', this.disabled === true ? '' : null);
+            setOrRemoveAttribute(this.input, 'disabled', this.enabled === false ? '' : null);
         }
         catch {
             this.input.removeAttribute('disabled');

@@ -27,10 +27,10 @@ export class ButtonControl extends HtmlControl {
         shadow.innerHTML = '<slot></slot>'
     }
 
-    override onDisabledChanged() {
-        super.onDisabledChanged();
+    override onEnabledChanged() {
+        super.onEnabledChanged();
 
-        const disabled = this.disabled === true;
+        const disabled = this.enabled === false;
         if (disabled) {
             this.setAttribute('aria-disabled', 'true');
         }

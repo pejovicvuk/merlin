@@ -7,7 +7,7 @@
 </head>
 
 <body>
-    <model-control id="model" disabled="!this.enabled">
+    <model-control id="model" enabled="this.enabled">
         <h1>Visual Tests</h1>
 
         <h2>Text and Classes</h2>
@@ -67,7 +67,7 @@
 
         <h2>Enable/Disable</h2>
         <div>
-            <check-box checked="this.enabled" disabled="false">Enabled</check-box>
+            <check-box checked="this.enabled" enabled="true">Enabled</check-box>
         </div>
 
         <button-control on-click="this.onButtonClicked(event)">

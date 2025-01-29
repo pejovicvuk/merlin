@@ -5,7 +5,7 @@ import { cancelTaskExecution, enqueTask } from "./task-queue.js";
 function callHandler(event: Event, type: string) {
     if (event.currentTarget === null) return;
     const element = event.currentTarget as HtmlControl;
-    if (element.disabled) return;
+    if (element.enabled === false) return;
     
     const attr = element.getAttribute(type);
     if (attr === null) return;
@@ -62,7 +62,7 @@ const cssDownloader = new CssDownloader(true);
 export class HtmlControl extends BindableControl implements
     HtmlControlBindableProperty<'classes', string | undefined>,
     HtmlControlBindableProperty<'states', string | undefined>,
-    HtmlControlAmbientProperty<'disabled', boolean | undefined>  {
+    HtmlControlAmbientProperty<'enabled', boolean | undefined>  {
 
     readonly #scheduledEvaluations = new Map<string, number>();
     #lastKnownClasses?: string
@@ -70,7 +70,7 @@ export class HtmlControl extends BindableControl implements
     #internals?: ElementInternals;
 
     static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes', 'states'];
-    static override ambientProperties = [...BindableControl.ambientProperties, 'disabled'];
+    static override ambientProperties = [...BindableControl.ambientProperties, 'enabled'];
     static override readonly additionalAttributes = [...BindableControl.additionalAttributes, 'style-sheets', ...map(events, x => 'on-' + x)];
 
     get classes() {
@@ -112,13 +112,13 @@ export class HtmlControl extends BindableControl implements
         this.#lastKnownClasses = classes;
     }
 
-    get disabled() {
-        return this.getProperty<boolean | undefined>('disabled', undefined);
+    get enabled() {
+        return this.getProperty<boolean | undefined>('enabled', undefined);
     }
 
-    readonly hasExplicitDisabled = false;
+    readonly hasExplicitEnabled = false;
 
-    onDisabledChanged() {
+    onEnabledChanged() {
     }
 
     get styleSheets() {

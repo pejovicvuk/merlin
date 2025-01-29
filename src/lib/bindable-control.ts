@@ -143,6 +143,18 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         }
     }
 
+    get #parentModel() {
+        registerAccess(this, ancestorsKey);
+
+        let ctl = this.parentControl;
+        while (ctl !== undefined) {
+            if (ctl instanceof BindableControl) return ctl.model;
+            ctl = ctl.parentControl;
+        }
+
+        return undefined;
+    }
+
     #evaluateBinding(name: string) {
         const maybeVal = this.#bindingValues?.get(name)
         if (maybeVal !== undefined) return maybeVal !== undefinedPlaceholder ? maybeVal : undefined;
@@ -172,11 +184,8 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         startEvalScope(dependencies);
 
         try {
-            const thisVal = name === 'model' ? undefined : this.model;
-
-            if (name !== 'model' && attr.indexOf('this') >= 0) {
-                registerAccess(this, 'model');
-            }
+            const thisVal = attr.indexOf('this') < 0 ? undefined :
+                name === 'model' ? this.#parentModel : this.model;
 
             const func = Function("element", "self", "window", "globals", "console", "top", `"use strict";return (${attr});`);
             const val = func.call(thisVal, this);

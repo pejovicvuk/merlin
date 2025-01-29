@@ -58,6 +58,5 @@ export class CheckBox extends InputControl implements
             super.attributeChangedCallback(name, oldValue, newValue);
         }
     }
-
 }
 

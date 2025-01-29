@@ -216,7 +216,7 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
             return Reflect.set(target, property, newValue, receiver);
         }
         else {
-            const changed = Reflect.get(target, property, receiver) === newValue;
+            const changed = Reflect.get(target, property, receiver) !== newValue;
             const ret = Reflect.set(target, property, newValue, receiver);
             if (ret && changed) this.#notifyListeners(property);
             return ret;

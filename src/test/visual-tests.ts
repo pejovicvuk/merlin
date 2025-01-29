@@ -2,7 +2,7 @@ import { sleepAsync, toTracked, HtmlControl, MenuItem, showContextMenu } from '.
 import { Corner, MenuItemSeparator } from '../lib/menu.js';
 import '../lib/register-controls.js';
 
-class TextModel {
+class CheckboxModel {
     // check boxes
 
     red = true;
@@ -17,13 +17,19 @@ class TextModel {
 
         this.red = this.blue = val;
     }
+}
+
+class TextModel {
+    checkBoxes?: CheckboxModel;
 
     // text
 
     get hint() {
-        return this.red && this.blue ? 'Red and Blue' :
-            this.red ? 'Red' :
-            this.blue ? 'Blue' :
+        const cb = this.checkBoxes;
+        return cb === undefined ? 'No checkboxes' :
+            cb.red && cb.blue ? 'Red and Blue' :
+            this.checkBoxes ? 'Red' :
+            this.checkBoxes ? 'Blue' :
             '';
     }
 
@@ -104,6 +110,9 @@ const textModel = toTracked(new TextModel());
 
 const modelControl = document.getElementById('model') as HtmlControl
 modelControl.model = textModel;
+
+await sleepAsync(1000);
+textModel.checkBoxes = toTracked(new CheckboxModel());
 
 for (let i = 0; i < 6; i++) {
     await sleepAsync(1000);

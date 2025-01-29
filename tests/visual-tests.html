@@ -18,16 +18,18 @@
                 on-click="this.clicked(event)">&nbsp;</text-block>
         </div>
 
-        <h2>Checkboxes</h2>
-        <div>
-            <check-box checked="this.redAndBlue">Red and Blue</check-box>
-            <check-box checked="this.red">Red</check-box>
-            <check-box checked="this.blue">Blue</check-box>
-        </div>
+        <model-control model="this.checkBoxes">
+            <h2>Checkboxes</h2>
+            <div>
+                <check-box checked="this.redAndBlue">Red and Blue</check-box>
+                <check-box checked="this.red">Red</check-box>
+                <check-box checked="this.blue">Blue</check-box>
+            </div>
+        </model-control>
 
         <h2>If/Else</h2>
         <div>
-            <if-else condition="this.red">
+            <if-else condition="this.checkBoxes.red">
                 <div slot="true">Red</div>
             </if-else>
         </div>

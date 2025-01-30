@@ -1,6 +1,6 @@
-import { sleepAsync, toTracked, HtmlControl, MenuItem, showContextMenu } from '../lib/index.js';
-import { Corner, MenuItemSeparator } from '../lib/menu.js';
-import '../lib/register-controls.js';
+import { sleepAsync, toTracked, HtmlControl, MenuItem, showContextMenu, Corner, MenuItemSeparator } from '../lib/index.js';
+import '../lib/index.js';
+
 
 class CheckboxModel {
     // check boxes
@@ -106,6 +106,8 @@ class TextModel {
     }
 }
 
+trt();
+
 const textModel = toTracked(new TextModel());
 
 const modelControl = document.getElementById('model') as HtmlControl
@@ -127,3 +129,4 @@ textModel.array.splice(2, 0, 9, 9, 9);
 
 await sleepAsync(1000);
 textModel.array.splice(5, 1);
+

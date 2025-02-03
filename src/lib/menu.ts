@@ -1,33 +1,43 @@
-import { sleepNoThrowAsync } from "./algorithms.js";
+import { map, sleepNoThrowAsync } from "./algorithms.js";
 import { BindableControl } from "./bindable-control.js";
 import { toTracked } from "./dependency-tracking.js";
 import { IfElse } from "./ifelse.js";
 import { ItemsControl } from "./items-control.js";
 
-export class MenuItemSeparator {
+export type MenuContent = string | { text: string, children?: Iterable<MenuContent | null> };
+
+class MenuItemSeparator {
     get isSeparator() {
         return true;
     }
 }
 
-export class MenuItem {
-    constructor(content: string, children?: (MenuItem | MenuItemSeparator) []) {
+const separator = new MenuItemSeparator();
+
+class MenuItem {
+    constructor(content: MenuContent, menuModel: MenuModel) {
         this.content = content;
-        this.children = children;
+        this.menuModel = menuModel;
     }
 
-    content: string;
-    children?: (MenuItem | MenuItemSeparator)[];
-    
-    context: MenuModel = null!;
+    readonly content: MenuContent;
+    readonly menuModel: MenuModel;
 
+    get children() {
+        return typeof this.content === 'object' ? this.content.children : undefined;
+    }
+
+    get text() {
+        return typeof this.content === 'string' ? this.content : this.content.text
+    }
+    
     get states() {
-        const ctx = this.context;
+        const ctx = this.menuModel;
         return ctx.chosen === this ? (ctx.mouseOverChosen ? "mouse-over" : "open") : undefined;
     }
 
     get hasChildren() {
-        return this.children !== undefined && this.children.length > 0;
+        return this.children !== undefined;
     }
 
     get isSeparator() {
@@ -56,9 +66,9 @@ styleSheet.replaceSync(`
 
 
 export class PopupMenu extends ItemsControl {
-    closed?: (x: MenuItem | undefined) => void;
+    closed?: (x: MenuContent | undefined) => void;
 
-    #clicked?: MenuItem;
+    #clicked?: MenuContent;
 
     #signal?: AbortSignal;
     #submenuAbort?: AbortController;
@@ -89,7 +99,7 @@ export class PopupMenu extends ItemsControl {
             if (mi === undefined) return;
 
             if (mi.menuItem.children === undefined) {
-                this.#clicked = mi.menuItem;
+                this.#clicked = mi.menuItem.content;
                 this.hidePopover();
             }
             else {
@@ -255,8 +265,8 @@ export enum Corner {
     TopLeft = 0, TopRight = 1, BottomLeft = 2, BottomRight = 3
 }
 
-function showContextMenuInternal(items: (MenuItem | MenuItemSeparator)[], x: number, y: number, corner: Corner, owner: Node, signal?: AbortSignal): Promise<MenuItem | undefined> {
-    return new Promise<MenuItem | undefined>(resolve => {
+function showContextMenuInternal(items: Iterable<MenuContent | null>, x: number, y: number, corner: Corner, owner: Node, signal?: AbortSignal): Promise<MenuContent | undefined> {
+    return new Promise<MenuContent | undefined>(resolve => {
         if (signal?.aborted) {
             resolve(undefined);
             return;
@@ -266,7 +276,7 @@ function showContextMenuInternal(items: (MenuItem | MenuItemSeparator)[], x: num
         popup.signal = signal;
         popup.innerHTML = `
             <template slot="item-template">
-                <text-block slot="false" text="this.content"></text-block>
+                <text-block slot="false" text="this.text"></text-block>
                 <if-else slot="false" condition="this.hasChildren">
                     <span slot="true">&#x276F;</span>
                 </if-else>
@@ -290,23 +300,19 @@ function showContextMenuInternal(items: (MenuItem | MenuItemSeparator)[], x: num
 
         popup.setAttribute('style', style);
 
-        const context = toTracked<MenuModel>({ items, mouseOverChosen: false });
-        for (const item of items) {
-            if (item instanceof MenuItem) {
-                item.context = context;
-            }
-        }
-        popup.model = context;
+        const menuModel = toTracked<MenuModel>({ items: null!, mouseOverChosen: false });
+        const itemsArray = [...map(items, x => x === null ? separator : toTracked(new MenuItem(x, menuModel)))];
+        menuModel.items = itemsArray;
+
+        popup.model = menuModel;
         owner.appendChild(popup);
-        popup.closed = menuItem => {
-            resolve(menuItem);
-        };
+        popup.closed = menuItem => resolve(menuItem);
 
         popup.showPopover();
     });
 }
 
-export async function showContextMenu(items: (MenuItem | MenuItemSeparator)[], x: number, y: number, corner: Corner): Promise<MenuItem | undefined> {
+export async function showContextMenu(items: Iterable<MenuContent | null>, x: number, y: number, corner: Corner): Promise<MenuContent | undefined> {
     const abort = new AbortController();
     const onSizeChanged = () => abort.abort();
 

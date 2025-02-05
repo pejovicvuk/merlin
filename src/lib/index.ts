@@ -12,5 +12,6 @@ export { toTracked, IChangeTracker, IArrayChangeTracker, addArrayListener, addLi
 export { ButtonControl } from './button-control.js';
 export { showContextMenu, MenuContent, Corner } from './menu.js';
 export { IfElse } from './ifelse.js';
+export { PickSlot } from './pick-slot.js';
 
 import './register-controls.js';

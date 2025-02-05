@@ -7,6 +7,7 @@ import { TextInput } from './text-input.js';
 import { ButtonControl } from './button-control.js';
 import { PopupMenu } from './menu.js';
 import { IfElse } from './ifelse.js';
+import { PickSlot } from './pick-slot.js';
 
 customElements.define('model-control', HtmlControl);
 customElements.define('text-block', TextBlock);
@@ -17,3 +18,4 @@ customElements.define('items-control', ItemsControl);
 customElements.define('button-control', ButtonControl);
 customElements.define('popup-menu', PopupMenu);
 customElements.define('if-else', IfElse);
+customElements.define('pick-slot', PickSlot);

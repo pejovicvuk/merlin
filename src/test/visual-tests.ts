@@ -87,6 +87,15 @@ class TextModel {
     enabled = true;
 
     array = toTracked([1, 2, 3]);
+    _selectedArrayIndex: number | undefined = 0;
+
+    get selectedArrayIndex() {
+        return this._selectedArrayIndex;
+    }
+
+    set selectedArrayIndex(val: number | undefined) {
+        this._selectedArrayIndex = val;
+    }
 
     async onButtonClicked(ev: MouseEvent) {
         ev.stopPropagation();
@@ -124,6 +133,9 @@ for (let i = 0; i < 6; i++) {
 
 await sleepAsync(1000);
 textModel.array[1] = 0;
+
+await sleepAsync(5000);
+textModel.selectedArrayIndex = 7;
 
 await sleepAsync(1000);
 textModel.array.splice(2, 0, 9, 9, 9);

@@ -11,7 +11,7 @@ export function testArrayTrackingBasics1() {
     let inserted = 0;
     let deleted = 0;
 
-    tracker[addArrayListener]((a, b, c) => {
+    tracker[addArrayListener]((arr: number[], a, b, c) => {
         idx = a;
         inserted = b;
         deleted = c;
@@ -36,7 +36,7 @@ export function testArrayTrackingBasics2() {
     let inserted = 0;
     let deleted = 0;
 
-    tracker[addArrayListener]((a, b, c) => {
+    tracker[addArrayListener]((arr: number[], a, b, c) => {
         idx = a;
         inserted = b;
         deleted = c;

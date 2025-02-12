@@ -99,8 +99,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         }
     }
 
-    #onArrayChanged = (index: number, inserted: number, deleted: number) => {
-        const arr = this.#displayedItems as any[];
+    #onArrayChanged = (arr: any[], index: number, inserted: number, deleted: number) => {
         const div = this.itemsContainer;
 
         let same = Math.min(inserted, deleted);

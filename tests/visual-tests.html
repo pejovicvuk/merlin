@@ -82,8 +82,12 @@
             This is a test
         </button-control>
 
-        <h2>Items</h2>
-        <items-control id="numbers" items="this.array" inherit-styles="true">
+        <h2>Items Combo</h2>
+        <select-control items="this.array" selected-index="this.selectedArrayIndex">
+        </select-control>
+
+        <h2>Items Control</h2>
+        <items-control id="numbers" items="this.array">
             <template slot="item-template">
                 <div part="item">
                     <text-block text="this" part="item text"></text-block>

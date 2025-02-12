@@ -24,7 +24,7 @@ interface AncestorsKey {};
 
 const ancestorsKey: AncestorsKey = {};
 
-function hasExplicit<T extends object>(obj: T, hasExplicitPropertyName: string) {
+function hasExplicit<T extends {}>(obj: T, hasExplicitPropertyName: string) {
     return (obj as Record<string, any>)[hasExplicitPropertyName] === true;
 }
 
@@ -83,7 +83,7 @@ export type AmbientProperty<T extends string, R> = BindableProperty<T, R> & {
     readonly [_ in `hasExplicit${Capitalize<T>}`]: boolean;
 };
 
-export class BindableControl extends HtmlControlCore implements IChangeTracker, AmbientProperty<'model', any> {
+export class BindableControl extends HtmlControlCore implements IChangeTracker<object>, AmbientProperty<'model', any> {
     #bindingDependencies?: Map<string, any[]>; // for each binding the array of dependencies obtained using evalTracked. the key is the attribute name, not the camel-cased property name
     #bindingValues?: Map<string, any>;
     #bindingExceptions?: Map<string, any>;
@@ -217,10 +217,10 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         for (let x = 0; x < this.#listeners.length; x += 3) {
             const k = this.#listeners[x];
             if (k === name) {
-                const listener = this.#listeners[x + 1] as (token: any) => void;
+                const listener = this.#listeners[x + 1] as (obj: object, token: any) => void;
                 const token = this.#listeners[x + 2];
                 try {
-                    listener(token);
+                    listener(this, token);
                 }
                 catch(err) {
                     console.log(err);
@@ -233,12 +233,12 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         return (this.#bindingValues?.delete(name) || this.#bindingExceptions?.delete(name));
     }
 
-    [addListener]<T>(handler: (token: T) => void, key: any, token: T) {
+    [addListener]<TTok>(handler: (obj: object, token: TTok) => void, key: any, token: TTok) {
         if (this.#listeners === undefined) this.#listeners = [];
         this.#listeners.push(key, handler, token);
     }
 
-    [removeListener]<T>(handler: (token: T) => void, key: any, token: T) {
+    [removeListener]<TTok>(handler: (obj: object, token: TTok) => void, key: any, token: TTok) {
         const listeners = this.#listeners;
         if (listeners === undefined) return;
 
@@ -254,7 +254,7 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         listeners.splice(lastIdx, 3);
     }
 
-    #onChangedImpl(name: string) {
+    #onChangedImpl(obj: object, name: string) {
         if (this.#clearBindingCache(name)) {
             this.#notifyListeners(name);
 
@@ -267,7 +267,7 @@ export class BindableControl extends HtmlControlCore implements IChangeTracker, 
         }
     }
 
-    #onChanged = (name: string) => this.#onChangedImpl(name);
+    #onChanged = (obj: object, name: string) => this.#onChangedImpl(obj, name);
 
     override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null) {
         super.attributeChangedCallback(name, oldValue, newValue);

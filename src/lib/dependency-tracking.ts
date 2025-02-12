@@ -1,23 +1,23 @@
 import { indexOfPair, indexOfTriplet, removePair } from "./algorithms.js";
 
-type ChangeListener<T> = (token: T) => void;
+type ChangeListener<TObj extends {}, TTok> = (obj: TObj, token: TTok) => void;
 
 export const addListener: unique symbol = Symbol("addListener");
 export const removeListener: unique symbol = Symbol("removeListener");
 
-export interface IChangeTracker {
-    [addListener]<T>(handler: ChangeListener<T>, key: any, token: T): void;
-    [removeListener]<T>(handler: ChangeListener<T>, key: any, token: T): void;
+export interface IChangeTracker<TObj extends {}> {
+    [addListener]<TTok>(handler: ChangeListener<TObj, TTok>, key: any, token: TTok): void;
+    [removeListener]<TTok>(handler: ChangeListener<TObj, TTok>, key: any, token: TTok): void;
 }
 
-type ArrayChangeListener = (index: number, inserted: number, deleted: number) => void;
+type ArrayChangeListener<T> = (arr: T[], index: number, inserted: number, deleted: number) => void;
 
 export const addArrayListener: unique symbol = Symbol("addArrayListener");
 export const removeArrayListener: unique symbol = Symbol("removeArrayListener");
 
-export interface IArrayChangeTracker extends IChangeTracker {
-    [addArrayListener](handler: ArrayChangeListener): void;
-    [removeArrayListener](handler: ArrayChangeListener): void;
+export interface IArrayChangeTracker<T> extends IChangeTracker<T[]> {
+    [addArrayListener](handler: ArrayChangeListener<T>): void;
+    [removeArrayListener](handler: ArrayChangeListener<T>): void;
 }
 
 let accessDependencies: undefined | (any[]);
@@ -32,7 +32,7 @@ let accessDependenciesExistingEnd = 0;
 // while if it does it will move it to accessDependenciesExistingStart - 2 and then decrement accessDependenciesExistingStart
 // by two
 
-export function registerAccess (tracker: IChangeTracker, key: any): void {
+export function registerAccess<TObj extends {}> (tracker: IChangeTracker<TObj>, key: any): void {
     if (accessDependencies === undefined) return;
 
     const idx = indexOfPair(accessDependencies, key, tracker);
@@ -48,16 +48,16 @@ export function registerAccess (tracker: IChangeTracker, key: any): void {
     }
 }
 
-function reconcileAccessDependencies(listener: ChangeListener<any>, token: any) {
+function reconcileAccessDependencies<TObj extends {}, TTok> (listener: ChangeListener<TObj, TTok>, token: TTok) {
     for (let x = 0; x < accessDependenciesExistingStart; ) {
         const key = accessDependencies![x++];
-        const tracker = accessDependencies![x++] as IChangeTracker;
+        const tracker = accessDependencies![x++] as IChangeTracker<TObj>;
         tracker[removeListener](listener, key, token);
     }
 
     for (let x = accessDependenciesExistingEnd; x < accessDependencies!.length; ) {
         const key = accessDependencies![x++];
-        const tracker = accessDependencies![x++] as IChangeTracker;
+        const tracker = accessDependencies![x++] as IChangeTracker<TObj>;
         tracker[addListener](listener, key, token);
     }
 
@@ -148,8 +148,8 @@ const getProxySymbol = Symbol("Target");
 
 export const hasListeners: unique symbol = Symbol("hasListeners");
 
-class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> implements ProxyHandler<T>, IChangeTracker {
-    #listeners?: (string | symbol | ChangeListener<any>) []; // we pack listeners in triplets for efficiency [key, listener, token]
+class TrackingProxyHandler<T extends { [hasListeners]?: boolean; }> implements ProxyHandler<T>, IChangeTracker<T> {
+    #listeners?: any []; // we pack listeners in triplets for efficiency [key, listener, token]
     proxy!: T;
 
     constructor(target: T) {
@@ -164,10 +164,10 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
         for (let x = 0; x < this.#listeners.length; x += 3) {
             const k = this.#listeners[x];
             if (k === key) {
-                const handler = this.#listeners[x + 1] as ChangeListener<any>;
+                const handler = this.#listeners[x + 1] as ChangeListener<any, any>;
                 const token = this.#listeners[x + 2];
                 try {
-                    handler(token);
+                    handler(this.proxy, token);
                 }
                 catch(err) {
                     console.log(err);
@@ -176,7 +176,7 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
         }
     }
 
-    [addListener]<T>(handler: ChangeListener<T>, key: any, token: any) {
+    [addListener]<TTok>(handler: ChangeListener<T, TTok>, key: any, token: TTok) {
         const noListeners = this.#listeners === undefined || this.#listeners.length === 0;
 
         this.#listeners ??= [];
@@ -185,7 +185,7 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
         if (noListeners) this.proxy[hasListeners] = true;
     }
 
-    [removeListener]<T>(handler: ChangeListener<T>, key: any, token: any) {
+    [removeListener]<TTok>(handler: ChangeListener<T, TTok>, key: any, token: any) {
         const listeners = this.#listeners;
         if (listeners === undefined) return;
 
@@ -236,12 +236,12 @@ class TrackingProxyHandler<T extends object & { [hasListeners]?: boolean; }> imp
     }
 }
 
-class ArrayTrackingProxyHandlerBase implements IArrayChangeTracker {
-    protected _perIndexListeners?: ((any | ChangeListener<any>)[])[]; // one per array index, each member is an array where we pack listeners in pairs for efficiency [listener, token]
-    protected _lengthListeners?: (any | ChangeListener<any>)[];
-    protected _listeners?: ArrayChangeListener[];
+class ArrayTrackingProxyHandlerBase<T> implements IArrayChangeTracker<T> {
+    protected _perIndexListeners?: ((any | ChangeListener<T[], any>)[])[]; // one per array index, each member is an array where we pack listeners in pairs for efficiency [listener, token]
+    protected _lengthListeners?: (any | ChangeListener<T[], any>)[];
+    protected _listeners?: ArrayChangeListener<T>[];
 
-    [addListener]<T>(handler: ChangeListener<T>, key: any, token: any) {
+    [addListener]<TTok>(handler: ChangeListener<T[], TTok>, key: any, token: TTok) {
         if (typeof key === 'number') {
             let map = this._perIndexListeners;
             if (map === undefined) {
@@ -261,7 +261,7 @@ class ArrayTrackingProxyHandlerBase implements IArrayChangeTracker {
         }
     }
 
-    [removeListener]<T>(handler: ChangeListener<T>, key: any, token: any) {
+    [removeListener]<TTok>(handler: ChangeListener<T[], TTok>, key: any, token: TTok) {
         if (typeof key === 'number') {
             const arr = this._perIndexListeners?.[key];
             if (arr === undefined) return;
@@ -276,30 +276,29 @@ class ArrayTrackingProxyHandlerBase implements IArrayChangeTracker {
         }
     }
 
-    [addArrayListener](handler: ArrayChangeListener) {
+    [addArrayListener](handler: ArrayChangeListener<T>) {
         if (this._listeners === undefined) this._listeners = [];
         this._listeners.push(handler);
     }
 
-    [removeArrayListener](handler: ArrayChangeListener) {
+    [removeArrayListener](handler: ArrayChangeListener<T>) {
         if (this._listeners === undefined) return;
         const idx = this._listeners.indexOf(handler);
         if (idx < 0) return;
         this._listeners[idx] = this._listeners[this._listeners.length - 1];
         this._listeners.splice(this._listeners.length - 1, 1);
     }
-
 }
 
-function notifyPlainListeners(arr: (readonly (any | ChangeListener<any>)[]) | undefined) {
-    if (arr === undefined) return;
+function notifyPlainListeners<T> (arr: T[], listenersAndTokens: (readonly (any | ChangeListener<T[], any>)[]) | undefined) {
+    if (listenersAndTokens === undefined) return;
 
-    for (let x = 0; x < arr.length; x += 2) {
-        const handler = arr[x] as ChangeListener<any>;
-        const token = arr[x + 1];
+    for (let x = 0; x < listenersAndTokens.length; x += 2) {
+        const handler = listenersAndTokens[x] as ChangeListener<T[], any>;
+        const token = listenersAndTokens[x + 1];
 
         try {
-            handler(token);
+            handler(arr, token);
         }
         catch(err) {
             console.log(err);
@@ -307,12 +306,14 @@ function notifyPlainListeners(arr: (readonly (any | ChangeListener<any>)[]) | un
     }
 }
 
-class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase implements ProxyHandler<T[]> {
+class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase<T> implements ProxyHandler<T[]> {
+    proxy!: T[];
+
     #notifyArray(index: number, inserted: number, deleted: number) {
         if (this._listeners === undefined) return;
 
         for(const listener of this._listeners) {
-            listener(index, inserted, deleted);
+            listener(this.proxy, index, inserted, deleted);
         }
     }
 
@@ -323,12 +324,12 @@ class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase impleme
 
         if (inserted === deleted) {
             for (let x = index; x < index + inserted; ++x) {
-                notifyPlainListeners(this._perIndexListeners[x]);
+                notifyPlainListeners(this.proxy, this._perIndexListeners[x]);
             }
         }
         else {
             for (let x = index; x < this._perIndexListeners.length; ++x) {
-                notifyPlainListeners(this._perIndexListeners[x]);
+                notifyPlainListeners(this.proxy, this._perIndexListeners[x]);
             }
         }
     }
@@ -339,7 +340,7 @@ class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase impleme
 
             if (this._perIndexListeners !== undefined) {
                 for (let x = nw; x < this._perIndexListeners.length; ++x) {
-                    notifyPlainListeners(this._perIndexListeners[x]);
+                    notifyPlainListeners(this.proxy, this._perIndexListeners[x]);
                 }
             }
         }
@@ -347,13 +348,13 @@ class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase impleme
             this.#notifyArray(old, nw - old, 0);
         }
 
-        notifyPlainListeners(this._lengthListeners);
+        notifyPlainListeners(this.proxy, this._lengthListeners);
     }
 
     #notifySet(index: number) {
         this.#notifyArray(index, 1, 1);
 
-        notifyPlainListeners(this._perIndexListeners?.[index]);
+        notifyPlainListeners(this.proxy, this._perIndexListeners?.[index]);
     }
 
     get(target: T[], property: string | symbol, _receiver: any): any {
@@ -516,9 +517,12 @@ class ArrayTrackingProxyHandler<T> extends ArrayTrackingProxyHandlerBase impleme
 // Gives you back the proxy to the object. Using this proxy you can attach event listners
 // to notify you when the object changes. The object is not modified in any way.
 
-export function toTracked<T extends object & { [hasListeners]?: boolean; }>(obj: T): T {
+export function toTracked<T extends ({ [hasListeners]?: boolean; } | {})>(obj: T): T {
     if (Array.isArray(obj)) {
-        return new Proxy(obj, new ArrayTrackingProxyHandler<any>()) as T;
+        const handler = new ArrayTrackingProxyHandler<any>();
+        const ret = new Proxy(obj, handler);
+        handler.proxy = ret;
+        return ret as unknown as T;
     }
     else {
         const handler = new TrackingProxyHandler<T>(obj);
@@ -530,7 +534,7 @@ export function toTracked<T extends object & { [hasListeners]?: boolean; }>(obj:
 
 // Given a proxy to a tracked object returns the object you can use to listen to its changes
 
-export function getTracker<T extends object>(obj: T): T extends any[] ? IArrayChangeTracker | undefined : IChangeTracker | undefined {
+export function getTracker<T extends {}>(obj: T): T extends (infer ElementType)[] ? IArrayChangeTracker<ElementType> | undefined : IChangeTracker<T> | undefined {
     return (obj as any)[getTrackerSymbol];
 }
 
@@ -550,7 +554,7 @@ export function evalTrackedScoped(s: string, thisArg: any,) {
     return func.apply(thisArg);
 }
 
-export function endEvalScope<T>(listener: ChangeListener<T>, token: T) {
+export function endEvalScope<TObj extends {}, TTok>(listener: ChangeListener<TObj, TTok>, token: TTok) {
     reconcileAccessDependencies(listener, token);
 
     accessDependenciesExistingEnd = dependencyChain.pop() as number;
@@ -558,7 +562,7 @@ export function endEvalScope<T>(listener: ChangeListener<T>, token: T) {
     accessDependencies = dependencyChain.pop() as undefined | any[];
 }
 
-export function evalTracked<T>(s: string, thisArg: any, listener: ChangeListener<T>, token: T, dependencies: any[]) {
+export function evalTracked<TObj extends {}, TTok>(s: string, thisArg: any, listener: ChangeListener<TObj, TTok>, token: TTok, dependencies: any[]) {
     const prevDependencies = accessDependencies;
     const prevStart = accessDependenciesExistingStart;
     const prevEnd = accessDependenciesExistingEnd;
@@ -579,10 +583,10 @@ export function evalTracked<T>(s: string, thisArg: any, listener: ChangeListener
     }
 }
 
-export function clearDependencies<T>(listener: ChangeListener<T>, token: T, dependencies: any[]) {
+export function clearDependencies<TObj extends {}, TTok>(listener: ChangeListener<TObj, TTok>, token: TTok, dependencies: any[]) {
     for (let x = 0; x < dependencies.length; x += 2) {
         const key = dependencies[x];
-        const tracker = dependencies[x + 1] as IChangeTracker;
+        const tracker = dependencies[x + 1] as IChangeTracker<TObj>;
         tracker[removeListener](listener, key, token);
     }
     dependencies.splice(0);

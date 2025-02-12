@@ -68,6 +68,7 @@ export class HtmlControl extends BindableControl implements
     #lastKnownClasses?: string
     #numAdoptedStyleSheets?: number;
     #internals?: ElementInternals;
+    #explicitEnabled?: boolean;
 
     static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes', 'states'];
     static override ambientProperties = [...BindableControl.ambientProperties, 'enabled'];
@@ -113,10 +114,18 @@ export class HtmlControl extends BindableControl implements
     }
 
     get enabled() {
-        return this.getProperty<boolean | undefined>('enabled', undefined);
+        return this.getProperty<boolean | undefined>('enabled', this.#explicitEnabled);
     }
 
-    readonly hasExplicitEnabled = false;
+    set enabled(val: boolean | undefined) {
+        const prev = this.#explicitEnabled;
+        this.#explicitEnabled = val;
+        this.notifyPropertySetExplicitly('enabled', prev, val);
+    }
+
+    get hasExplicitEnabled() {
+        return this.#explicitEnabled !== undefined;
+    }
 
     onEnabledChanged() {
     }

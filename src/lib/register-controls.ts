@@ -9,6 +9,7 @@ import { PopupMenu } from './menu.js';
 import { IfElse } from './ifelse.js';
 import { PickSlot } from './pick-slot.js';
 import { SelectControl } from './select-control.js';
+import { ContentControl } from './content-control.js';
 
 customElements.define('model-control', HtmlControl);
 customElements.define('text-block', TextBlock);
@@ -21,3 +22,4 @@ customElements.define('popup-menu', PopupMenu);
 customElements.define('if-else', IfElse);
 customElements.define('pick-slot', PickSlot);
 customElements.define('select-control', SelectControl);
+customElements.define('content-control', ContentControl);

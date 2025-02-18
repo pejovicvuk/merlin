@@ -1,43 +1,12 @@
 import { BindableControl } from "./bindable-control.js";
 import { addArrayListener, getTracker, removeArrayListener } from "./dependency-tracking.js";
+import { findTemplateById, getTypeName } from "./dom-utilities.js";
 import { HtmlControl, HtmlControlBindableProperty } from "./html-control.js";
 
 const standardTemplate = document.createElement('template');
 standardTemplate.innerHTML = '<text-block text="this"></text-block>';
 
 const shadowHtml = '<slot name="item-template"></slot><div part="container"></div>';
-
-function findTemplateById(ctl: Element, id: string): HTMLTemplateElement | undefined {
-    for (;;) {
-        const root = ctl.getRootNode();
-        if (root instanceof ShadowRoot) {
-            const maybeTemplate = root.getElementById(id);
-            if (maybeTemplate instanceof HTMLTemplateElement) return maybeTemplate;
-            ctl = root.host;
-        }
-        else if (root instanceof Document) {
-            const maybeTemplate = root.getElementById(id);
-            return maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate : undefined;
-        }
-        else {
-            return undefined;
-        }
-    }
-}
-
-function getTypeName(item: any): string {
-    const tp = typeof item;
-    if (tp === 'object') {
-        return Object.getPrototypeOf(item).constructor.name;
-    }
-    else if (tp == 'function') {
-        return item.name;
-    }
-    else {
-        return tp;
-    }
-}
-
 
 export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'items'];

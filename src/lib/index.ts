@@ -14,5 +14,6 @@ export { showContextMenu, MenuContent, Corner } from './menu.js';
 export { IfElse } from './ifelse.js';
 export { PickSlot } from './pick-slot.js';
 export { SelectControl } from './select-control.js';
+export { ContentControl } from './content-control.js';
 
 import './register-controls.js';

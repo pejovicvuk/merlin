@@ -202,6 +202,15 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         while(same-- > 0) {
             const item = arr[index];
             const ctl = (div.children[index++] as HTMLSlotElement).assignedElements()[0] as BindableControl;
+            const prevItem = ctl.model;
+
+            if (prevItem === item) continue;
+
+            if (getTypeName(item) !== getTypeName(prevItem)) {
+                ctl.innerHTML = '';
+                ctl.append(this.#getItemTemplateContent(item).cloneNode(true));
+            }
+
             ctl.model = item;
         }
 
@@ -212,7 +221,6 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
             const template = this.#getItemTemplateContent(item);
             ctl.append(template.cloneNode(true));
             ctl.model = item; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
-
 
             const slotName = 'i-' + this.#slotCount++;
 

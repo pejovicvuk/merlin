@@ -160,11 +160,13 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
             slot.name = slotName;
 
             if (index < div.childElementCount) {
-                div.insertBefore(slot, div.children[index++]);
+                div.insertBefore(slot, div.children[index]);
             }
             else {
                 div.appendChild(slot);
             }
+
+            ++index;
         }
 
         while(deleted > 0) {

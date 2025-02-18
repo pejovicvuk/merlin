@@ -535,7 +535,7 @@ export function toTracked<T extends ({ [hasListeners]?: boolean; } | {})>(obj: T
 // Given a proxy to a tracked object returns the object you can use to listen to its changes
 
 export function getTracker<T extends {}>(obj: T): T extends (infer ElementType)[] ? IArrayChangeTracker<ElementType> | undefined : IChangeTracker<T> | undefined {
-    return (obj as any)[getTrackerSymbol];
+    return (obj as any)?.[getTrackerSymbol];
 }
 
 const dependencyChain: (any[] | number | undefined)[] = [];

@@ -7,6 +7,38 @@ standardTemplate.innerHTML = '<text-block text="this"></text-block>';
 
 const shadowHtml = '<slot name="item-template"></slot><div part="container"></div>';
 
+function findTemplateById(ctl: Element, id: string): HTMLTemplateElement | undefined {
+    for (;;) {
+        const root = ctl.getRootNode();
+        if (root instanceof ShadowRoot) {
+            const maybeTemplate = root.getElementById(id);
+            if (maybeTemplate instanceof HTMLTemplateElement) return maybeTemplate;
+            ctl = root.host;
+        }
+        else if (root instanceof Document) {
+            const maybeTemplate = root.getElementById(id);
+            return maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate : undefined;
+        }
+        else {
+            return undefined;
+        }
+    }
+}
+
+function getTypeName(item: any): string {
+    const tp = typeof item;
+    if (tp === 'object') {
+        return Object.getPrototypeOf(item).constructor.name;
+    }
+    else if (tp == 'function') {
+        return item.name;
+    }
+    else {
+        return tp;
+    }
+}
+
+
 export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'items'];
 
@@ -27,7 +59,11 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         ev.stopPropagation();
     }
 
+    #assignedElementsCache?: Element[];
+
     #onSlotChange () {
+        this.#assignedElementsCache = undefined;
+
         if (this.#displayedItems === undefined) return;
 
         const div = this.itemsContainer;
@@ -36,9 +72,10 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         }
         div.innerHTML = '';
 
-        const template = this.#itemTemplateContent;
         for (const item of this.#displayedItems) {
             const ctl = this.createItemContainer();
+
+            const template = this.#getItemTemplateContent(item);
 
             ctl.append(template.cloneNode(true));
             ctl.model = item; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
@@ -51,17 +88,41 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
             const slot = document.createElement('slot');
             slot.name = slotName;
             div.appendChild(slot);
-    }
+        }
     }
 
     get #itemTemplateSlot() {
         return this.shadowRoot!.querySelector('slot[name="item-template"]') as HTMLSlotElement;
     }
 
-    get #itemTemplateContent(): DocumentFragment {
-        const maybeTemplate = this.#itemTemplateSlot.assignedElements({ flatten: true })[0];
-        const template = maybeTemplate instanceof HTMLTemplateElement ? maybeTemplate : standardTemplate;
-        return template.content;
+    #getItemTemplateContent(item: any): DocumentFragment {
+        const name = getTypeName(item);
+
+        this.#assignedElementsCache ??= this.#itemTemplateSlot.assignedElements();
+
+        let anonymous: HTMLTemplateElement | undefined = undefined;
+        let numAnonymous = 0;
+        let numNamed = 0;
+
+        for(const template of this.#assignedElementsCache) {
+            if (!(template instanceof HTMLTemplateElement)) continue;
+
+            if (template.id === name) return template.content;
+            else if (template.id === "") {
+                anonymous = template;
+                ++numAnonymous;
+            }
+            else {
+                ++numNamed;
+            }
+        }
+
+        if (numAnonymous === 1 && numNamed === 0 && anonymous !== undefined) {
+            return anonymous.content;
+        }
+        else {
+            return (findTemplateById(this, name) ?? standardTemplate).content;
+        }
     }
 
     get items() {
@@ -113,9 +174,9 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
                 }
             }
 
-            const template = this.#itemTemplateContent;
             for (const item of items) {
                 const ctl = this.createItemContainer();
+                const template = this.#getItemTemplateContent(item);
                 ctl.append(template.cloneNode(true));
                 ctl.model = item; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
 
@@ -144,11 +205,13 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
             ctl.model = item;
         }
 
-        const template = this.#itemTemplateContent;
         while(inserted-- > 0) {
+            const item = arr[index];
+
             const ctl = this.createItemContainer();
+            const template = this.#getItemTemplateContent(item);
             ctl.append(template.cloneNode(true));
-            ctl.model = arr[index]; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
+            ctl.model = item; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
 
 
             const slotName = 'i-' + this.#slotCount++;

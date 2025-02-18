@@ -107,7 +107,7 @@ export abstract class InputControl extends HtmlControl implements HtmlControlAmb
                 list.insertBefore(opt, list.children[index]);
             }
             else {
-                list.appendChild(list);
+                list.appendChild(opt);
             }
 
             ++index;

@@ -86,7 +86,7 @@ class TextModel {
     // disable
     enabled = true;
 
-    array = toTracked([1, 2, 3]);
+    array = toTracked([1, 2, 3, { text: "pera" }]);
     _selectedArrayIndex: number | undefined = 0;
 
     get selectedArrayIndex() {

@@ -49,3 +49,6 @@ items-control::part(container) {
     background-color: aliceblue;
 }
 
+items-control > model-control {
+    color: red;
+}

@@ -55,15 +55,18 @@ const styleSheet = new CSSStyleSheet();
 styleSheet.replaceSync(`
     :host { box-sizing: border-box; cursor: default; user-select: none; background-color: #e6e6e6; border: 1px solid #bbbbbb; padding: 0.25em; border-radius: 0.25em; filter: drop-shadow(0em 0.15em 0.25em #bbbbbb); }
     :host > div[part="container"] { display: grid; grid-template-columns: auto auto; }
-    :host > div[part="container"] > if-else { padding: 0.25em 0.35em; border-radius: 0.25em; display: grid; grid-column: span 2; grid-template-columns: subgrid; }
-    :host > div[part="container"] > if-else:state(mouse-over) { background-color: #5992f5; color: white; }
-    :host > div[part="container"] > if-else:state(open) { background-color: #cccbcb; }
-    :host > div[part="container"] > if-else > :first-child { grid-column: 1; }
-    :host > div[part="container"] > if-else > :nth-child(2) { grid-column: 2; }
-    :host > div[part="container"] > if-else > :nth-child(2) > span[slot="true"] { margin-left: 2ch; }
-    :host > div[part="container"] > if-else > .separator { grid-column: span 2; background-color: #c6c6c6; height: 1px; }
+    :host > div[part="container"] > ::slotted(*) { padding: 0.25em 0.35em; border-radius: 0.25em; display: grid; grid-column: span 2; grid-template-columns: subgrid; }
+    :host > div[part="container"] > ::slotted(:state(mouse-over)) { background-color: #5992f5; color: white; }
+    :host > div[part="container"] > ::slotted(:state(open)) { background-color: #cccbcb; }
+    :host > div[part="container"] text-block { all: initial; }
 `);
 
+const itemStyleSheet = new CSSStyleSheet();
+itemStyleSheet.replaceSync(`
+    :host > ::slotted(:first-child) { grid-column: 1; padding: 0px !important; margin: 0px !important; }
+    :host > ::slotted(:nth-child(2)) { grid-column: 2; padding: 0px; margin: 0px; margin-left: 2ch; display: inline-block; }
+    :host > ::slotted(.separator) { grid-column: span 2; background-color: #c6c6c6; height: 1px; }
+`);
 
 export class PopupMenu extends ItemsControl {
     closed?: (x: MenuContent | undefined) => void;
@@ -248,6 +251,7 @@ export class PopupMenu extends ItemsControl {
         const ret = document.createElement('if-else') as IfElse;
         ret.setAttribute('states', 'this.states');
         ret.setAttribute('condition', 'this.isSeparator');
+        ret.adoptStyleSheet(itemStyleSheet);
         return ret;
     }
 

@@ -7,6 +7,11 @@ const shadowHtml = '<slot name="template"></slot><slot name="content"></slot>';
 const standardTemplate = document.createElement('template');
 standardTemplate.innerHTML = '<text-block text="this"></text-block>';
 
+const styleSheet = new CSSStyleSheet();
+styleSheet.replaceSync(`
+    :host { display: contents; }
+`);
+
 export class ContentControl extends HtmlControl implements HtmlControlBindableProperty<'content', any>{
     static override bindableProperties = [...HtmlControl.bindableProperties, 'content'];
 
@@ -19,6 +24,8 @@ export class ContentControl extends HtmlControl implements HtmlControlBindablePr
 
         const slot = this.#itemTemplateSlot;
         slot.addEventListener('slotchange', ContentControl.#onSlotChangeShared);
+
+        this.adoptStyleSheet(styleSheet);
     }
 
     get content() {

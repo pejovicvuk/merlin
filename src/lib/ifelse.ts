@@ -1,5 +1,11 @@
 import { HtmlControl, HtmlControlBindableProperty } from "./html-control.js";
 
+
+const styleSheet = new CSSStyleSheet();
+styleSheet.replaceSync(`
+    :host { display: contents; }
+`);
+
 export class IfElse extends HtmlControl implements HtmlControlBindableProperty<'condition', boolean | undefined> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'condition'];
 
@@ -8,6 +14,8 @@ export class IfElse extends HtmlControl implements HtmlControlBindableProperty<'
 
         const shadow = this.attachShadow({ mode:"open" });
         shadow.innerHTML = '<slot name="undecided"></slot>'
+
+        this.adoptStyleSheet(styleSheet);
     }
 
     get condition() {

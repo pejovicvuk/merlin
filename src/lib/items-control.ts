@@ -9,7 +9,7 @@ standardTemplate.innerHTML = '<text-block text="this"></text-block>';
 const shadowHtml = '<slot name="item-template"></slot><div part="container"></div>';
 
 export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>>, HtmlControlBindableProperty<'itemToTemplateId', (item: any) => string> {
-    static override bindableProperties = [...HtmlControl.bindableProperties, 'items'];
+    static override bindableProperties = [...HtmlControl.bindableProperties, 'items', 'itemToTemplateId'];
 
     #displayedItems?: Iterable<any>;
     #slotCount = 0;

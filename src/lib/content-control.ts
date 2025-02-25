@@ -13,7 +13,7 @@ styleSheet.replaceSync(`
 `);
 
 export class ContentControl extends HtmlControl implements HtmlControlBindableProperty<'content', any>, HtmlControlBindableProperty<'itemToTemplateId', (item: any) => string> {
-    static override bindableProperties = [...HtmlControl.bindableProperties, 'content'];
+    static override bindableProperties = [...HtmlControl.bindableProperties, 'content', 'itemToTemplateId'];
 
     #itemToTemplateId?: (item: any) => string;
     #content?: any;

@@ -29,7 +29,7 @@ export class ContentControl extends HtmlControl implements HtmlControlBindablePr
         this.adoptStyleSheet(styleSheet);
     }
 
-    get content() {
+    get content(): any {
         return this.getProperty('content');
     }
 
@@ -107,30 +107,34 @@ export class ContentControl extends HtmlControl implements HtmlControlBindablePr
     }
 
     #updateContent() {
-        const content = this.content;
         const prevcontent = this.#content;
 
-        if (content === prevcontent) return;
-
-        this.#content = content;
+        try {
+            this.#content = this.content;
+        }
+        catch {
+            this.#content = undefined;
+        }
+    
+        if (this.#content === prevcontent) return;
 
         const slot = this.#contentSlot;
 
         const assigned = slot.assignedElements();
 
-        if (this.getItemToTemplateId(content) === this.getItemToTemplateId(this.#content) && assigned.length > 0) {
+        if (this.getItemToTemplateId(this.#content) === this.getItemToTemplateId(this.#content) && assigned.length > 0) {
             for (const el of assigned) {
-                (el as BindableControl).model = content;
+                (el as BindableControl).model = this.#content;
             }
         }
         else {
             for (const el of assigned) el.remove();
 
-            if (content !== undefined) {
+            if (this.#content !== undefined) {
                 const container = document.createElement('model-control') as BindableControl;
-                const template = this.#getItemTemplateContent(content);
+                const template = this.#getItemTemplateContent(this.#content);
                 container.append(template.cloneNode(true));
-                container.model = content;
+                container.model = this.#content;
                 container.slot = 'content';
     
                 this.appendChild(container);

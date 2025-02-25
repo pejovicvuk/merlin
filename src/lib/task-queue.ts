@@ -16,11 +16,13 @@ export function executeQueuedTasks() {
         --queueLiving;
         queueStart += 2;
 
-        try {
-            task(arg);
-        }
-        catch(err) {
-            console.error(err);
+        if (task !== undefined) {
+            try {
+                task(arg);
+            }
+            catch(err) {
+                console.error(err);
+            }
         }
     }
 
@@ -43,8 +45,15 @@ export function cancelTaskExecution(id: number) {
     if (id < queueStart) return;
     if (id >= queueStart + queue.length) throw new Error('Unknown task ID.');
 
-    queue.set(id - queueStart, undefined);
-    queue.set(id - queueStart + 1, undefined);
+    if (queueStart === id) {
+        queue.pop();
+        queue.pop();
+        queueStart += 2;
+    }
+    else {
+        queue.set(id - queueStart, undefined);
+        queue.set(id - queueStart + 1, undefined);
+    }
 
     if (--queueLiving === 0) {
         clearTimeout(id);

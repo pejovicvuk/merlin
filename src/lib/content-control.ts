@@ -12,9 +12,10 @@ styleSheet.replaceSync(`
     :host { display: contents; }
 `);
 
-export class ContentControl extends HtmlControl implements HtmlControlBindableProperty<'content', any>{
+export class ContentControl extends HtmlControl implements HtmlControlBindableProperty<'content', any>, HtmlControlBindableProperty<'itemToTemplateId', (item: any) => string> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'content'];
 
+    #itemToTemplateId?: (item: any) => string;
     #content?: any;
 
     constructor() {
@@ -56,9 +57,27 @@ export class ContentControl extends HtmlControl implements HtmlControlBindablePr
     get #contentSlot() {
         return this.shadowRoot!.querySelector('slot[name="content"]') as HTMLSlotElement;
     }
+    
+    get itemToTemplateId(): ((item: any) => string) | undefined {
+        return this.getProperty('itemToTemplateId', this.#itemToTemplateId);
+    }
+
+    set itemToTemplateId(func: ((item: any) => string) | undefined) {
+        const prev = this.#itemToTemplateId;
+        this.#itemToTemplateId = func;
+        this.notifyPropertySetExplicitly('itemToTemplateId', prev, func);
+    }
+
+    onItemToTemplateIdChanged() {
+        if (this.#content !== undefined) this.#updateContent();
+    }
+
+    getItemToTemplateId(item: any): string {
+        return (this.itemToTemplateId ?? getTypeName)(item);
+    }
 
     #getItemTemplateContent(item: any): DocumentFragment {
-        const name = getTypeName(item);
+        const name = this.getItemToTemplateId(item);
 
         this.#assignedElementsCache ??= this.#itemTemplateSlot.assignedElements();
 
@@ -99,7 +118,7 @@ export class ContentControl extends HtmlControl implements HtmlControlBindablePr
 
         const assigned = slot.assignedElements();
 
-        if (getTypeName(content) === getTypeName(this.#content) && assigned.length > 0) {
+        if (this.getItemToTemplateId(content) === this.getItemToTemplateId(this.#content) && assigned.length > 0) {
             for (const el of assigned) {
                 (el as BindableControl).model = content;
             }

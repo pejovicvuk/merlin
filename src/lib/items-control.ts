@@ -8,11 +8,12 @@ standardTemplate.innerHTML = '<text-block text="this"></text-block>';
 
 const shadowHtml = '<slot name="item-template"></slot><div part="container"></div>';
 
-export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>> {
+export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>>, HtmlControlBindableProperty<'itemToTemplateId', (item: any) => string> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'items'];
 
     #displayedItems?: Iterable<any>;
     #slotCount = 0;
+    #itemToTemplateId?: (item: any) => string;
 
     constructor() {
         super();
@@ -24,13 +25,13 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     }
 
     static #onSlotChangeShared(this: HTMLSlotElement, ev: Event) {
-        ((this.parentNode as ShadowRoot).host as ItemsControl).#onSlotChange();
+        ((this.parentNode as ShadowRoot).host as ItemsControl).#rebuildItems();
         ev.stopPropagation();
     }
 
     #assignedElementsCache?: Element[];
 
-    #onSlotChange () {
+    #rebuildItems () {
         this.#assignedElementsCache = undefined;
 
         if (this.#displayedItems === undefined) return;
@@ -64,8 +65,35 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         return this.shadowRoot!.querySelector('slot[name="item-template"]') as HTMLSlotElement;
     }
 
+    get itemToTemplateId(): ((item: any) => string) | undefined {
+        return this.getProperty('itemToTemplateId', this.#itemToTemplateId);
+    }
+
+    set itemToTemplateId(func: ((item: any) => string) | undefined) {
+        const prev = this.#itemToTemplateId;
+        this.#itemToTemplateId = func;
+        this.notifyPropertySetExplicitly('itemToTemplateId', prev, func);
+    }
+
+    onItemToTemplateIdChanged() {
+        this.#rebuildItems();
+    }
+
+    getItemToTemplateId(item: any): string {
+        return (this.itemToTemplateId ?? getTypeName)(item);
+    }
+
+    #lastUsedTemplate?: HTMLTemplateElement;
+
+    findTemplateById(id: string): HTMLTemplateElement | undefined {
+        if (this.#lastUsedTemplate?.id === id) return this.#lastUsedTemplate;
+
+        this.#lastUsedTemplate = findTemplateById(this, id);
+        return this.#lastUsedTemplate;
+    }
+
     #getItemTemplateContent(item: any): DocumentFragment {
-        const name = getTypeName(item);
+        const name = this.getItemToTemplateId(item);
 
         this.#assignedElementsCache ??= this.#itemTemplateSlot.assignedElements();
 
@@ -175,7 +203,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
             if (prevItem === item) continue;
 
-            if (getTypeName(item) !== getTypeName(prevItem)) {
+            if (this.getItemToTemplateId(item) !== this.getItemToTemplateId(prevItem)) {
                 ctl.innerHTML = '';
                 ctl.append(this.#getItemTemplateContent(item).cloneNode(true));
             }
@@ -219,9 +247,14 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     override onDisconnectedFromDom(): void {
         super.onDisconnectedFromDom();
         this.onItemsChanged();
+        this.#lastUsedTemplate = undefined;
     }
 
     createItemContainer(): BindableControl {
         return document.createElement('model-control') as BindableControl;
+    }
+
+    override onAncestorsChanged(): void {
+        this.#lastUsedTemplate = undefined;
     }
 }

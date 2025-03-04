@@ -6,7 +6,7 @@ import { HtmlControl, HtmlControlBindableProperty } from "./html-control.js";
 const standardTemplate = document.createElement('template');
 standardTemplate.innerHTML = '<text-block text="this"></text-block>';
 
-const shadowHtml = '<slot name="item-template"></slot><div part="container"></div>';
+const shadowHtml = '<slot name="item-template"></slot><slot name="item-container-template"><template><model-control></model-control></template></slot><div part="container"></div>';
 
 export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>>, HtmlControlBindableProperty<'itemToTemplateId', (item: any) => string> {
     static override bindableProperties = [...HtmlControl.bindableProperties, 'items', 'itemToTemplateId'];
@@ -20,8 +20,11 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         const shadow = this.attachShadow({ mode: "open", delegatesFocus: true });
         shadow.innerHTML = shadowHtml;
 
-        const slot = this.#itemTemplateSlot;
-        slot.addEventListener('slotchange', ItemsControl.#onSlotChangeShared);
+        const templateSlot = this.#itemTemplateSlot;
+        templateSlot.addEventListener('slotchange', ItemsControl.#onSlotChangeShared);
+
+        const itemContainerTemplateSlot = this.#itemContainerTemplateSlot;
+        itemContainerTemplateSlot.addEventListener('slotchange', ItemsControl.#onSlotChangeShared);
     }
 
     static #onSlotChangeShared(this: HTMLSlotElement, ev: Event) {
@@ -33,6 +36,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
     #rebuildItems () {
         this.#assignedElementsCache = undefined;
+        this.#itemContainerTemplate = undefined;
 
         if (this.#displayedItems === undefined) return;
 
@@ -63,6 +67,10 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
     get #itemTemplateSlot() {
         return this.shadowRoot!.querySelector('slot[name="item-template"]') as HTMLSlotElement;
+    }
+
+    get #itemContainerTemplateSlot() {
+        return this.shadowRoot!.querySelector('slot[name="item-container-template"]') as HTMLSlotElement;
     }
 
     get itemToTemplateId(): ((item: any) => string) | undefined {
@@ -248,9 +256,25 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         super.onDisconnectedFromDom();
         this.onItemsChanged();
         this.#lastUsedTemplate = undefined;
+        this.#itemContainerTemplate = undefined;
     }
 
+    #itemContainerTemplate?: HTMLTemplateElement;
+
     createItemContainer(): BindableControl {
+        if(this.#itemContainerTemplate === undefined) {
+            const template = this.#itemContainerTemplateSlot.assignedElements()[0];
+            this.#itemContainerTemplate = template instanceof HTMLTemplateElement ? template : undefined;
+        }
+
+        if (this.#itemContainerTemplate !== undefined) {
+            const ch = this.#itemContainerTemplate.content.firstElementChild;
+            if (ch !== null) {
+                const maybe = document.importNode(ch, true);
+                if (maybe instanceof BindableControl) return maybe;
+            }
+        }
+        
         return document.createElement('model-control') as BindableControl;
     }
 

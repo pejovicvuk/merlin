@@ -80,8 +80,8 @@ export abstract class InputControl extends HtmlControl implements HtmlControlAmb
             }
         }
         else if (input.list != null) {
-            input.removeAttribute('list');
             input.list.remove();
+            input.removeAttribute('list');
         }
     }
 

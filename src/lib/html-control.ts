@@ -62,6 +62,7 @@ const cssDownloader = new CssDownloader(true);
 export class HtmlControl extends BindableControl implements
     HtmlControlBindableProperty<'classes', string | undefined>,
     HtmlControlBindableProperty<'states', string | undefined>,
+    HtmlControlBindableProperty<'canDrag', boolean | undefined>,
     HtmlControlAmbientProperty<'enabled', boolean | undefined>  {
 
     readonly #scheduledEvaluations = new Map<string, number>();
@@ -70,7 +71,7 @@ export class HtmlControl extends BindableControl implements
     #internals?: ElementInternals;
     #explicitEnabled?: boolean;
 
-    static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes', 'states'];
+    static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes', 'states', 'canDrag'];
     static override ambientProperties = [...BindableControl.ambientProperties, 'enabled'];
     static override readonly additionalAttributes = [...BindableControl.additionalAttributes, 'style-sheets', ...map(events, x => 'on-' + x)];
 
@@ -143,7 +144,7 @@ export class HtmlControl extends BindableControl implements
     }
 
     get states() {
-        return this.getProperty<string | undefined>('states', undefined);
+        return this.getProperty<string | undefined>('states');
     }
 
     onStatesChanged() {
@@ -173,6 +174,21 @@ export class HtmlControl extends BindableControl implements
         if (incoming !== undefined) {
             for (const state of incoming) real.add(state);
         }
+    }
+
+    get canDrag() {
+        return this.getProperty<boolean | undefined>('canDrag');
+    }
+
+    onCanDragChanged() {
+        let canDrag: boolean | undefined = undefined;
+        try {
+            canDrag = this.canDrag;
+        }
+        catch{
+        }
+
+        setOrRemoveAttribute(this, 'draggable', canDrag === true ? 'true' : null);
     }
 
     #evaluatePropertyCallbackImpl(property: string): void {

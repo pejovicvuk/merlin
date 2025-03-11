@@ -1,6 +1,6 @@
 {
   "name": "@trilogyes/merlin",
-  "version": "0.0.26",
+  "version": "0.0.27",
   "main": "dst/lib/index.js",
   "types": "dst/lib/index.d.ts",
   "files": ["dst/lib", "src/lib"],

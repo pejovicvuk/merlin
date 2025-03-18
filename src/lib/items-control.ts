@@ -49,7 +49,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         }
         el ??= document.createElement('div')
         el.part.add('container');
-        this.replaceChild(this.itemsContainer, el);
+        this.shadowRoot!.replaceChild(this.itemsContainer, el);
 
         for (const item of this.#displayedItems) {
             const ctl = this.createItemContainer();

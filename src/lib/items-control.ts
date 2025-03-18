@@ -2,6 +2,7 @@ import { BindableControl } from "./bindable-control.js";
 import { addArrayListener, getTracker, removeArrayListener } from "./dependency-tracking.js";
 import { findTemplateById, getTypeName } from "./dom-utilities.js";
 import { HtmlControl, HtmlControlBindableProperty } from "./html-control.js";
+import { enqueTask } from "./task-queue.js";
 
 const standardTemplate = document.createElement('template');
 standardTemplate.innerHTML = '<text-block text="this"></text-block>';
@@ -14,6 +15,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     #displayedItems?: Iterable<any>;
     #slotCount = 0;
     #itemToTemplateId?: (item: any) => string;
+    #recentlyDeleted?: Map<any, BindableControl>;
 
     constructor() {
         super();
@@ -40,11 +42,14 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
         if (this.#displayedItems === undefined) return;
 
-        const div = this.itemsContainer;
-        for (const slot of div.children) {
-            for (const el of (slot as HTMLSlotElement).assignedElements()) el.remove();
+        const itemContainerAssigned = this.#itemContainerTemplateSlot.assignedElements();
+        let el: HTMLElement | null;
+        if (itemContainerAssigned.length === 1 && itemContainerAssigned[0] instanceof HTMLTemplateElement) {
+            el = (itemContainerAssigned[0].content.cloneNode(true) as DocumentFragment).firstElementChild as (HTMLElement | null);
         }
-        div.innerHTML = '';
+        el ??= document.createElement('div')
+        el.part.add('container');
+        this.replaceChild(this.itemsContainer, el);
 
         for (const item of this.#displayedItems) {
             const ctl = this.createItemContainer();
@@ -61,7 +66,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
             const slot = document.createElement('slot');
             slot.name = slotName;
-            div.appendChild(slot);
+            el.appendChild(slot);
         }
     }
 
@@ -157,16 +162,15 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         }
 
         const div = this.itemsContainer;
-        for (const slot of div.children) {
-            for (const el of (slot as HTMLSlotElement).assignedElements()) el.remove();
-        }
-        div.innerHTML = '';
 
         let chNum = this.children.length;
         while (chNum-- > 0) {
             const ch = this.children[chNum];
 
-            if (ch instanceof HTMLSlotElement && ch.name.startsWith('i-')) ch.remove();
+            if (ch instanceof HTMLSlotElement && ch.name.startsWith('i-')) {
+                for(const x of ch.assignedElements()) x.remove();
+                ch.remove();
+            }
         }
 
         this.#displayedItems = items;
@@ -197,7 +201,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         }
     }
 
-    #onArrayChanged = (arr: any[], index: number, inserted: number, deleted: number) => {
+    #onArrayChanged = (arr: any[], index: number, inserted: number, deleted: number, deletedItems: any | any[] | undefined) => {
         const div = this.itemsContainer;
 
         let same = Math.min(inserted, deleted);
@@ -222,13 +226,19 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         while(inserted-- > 0) {
             const item = arr[index];
 
-            const ctl = this.createItemContainer();
-            const template = this.#getItemTemplateContent(item);
-            ctl.append(template.cloneNode(true));
+            let ctl = this.#recentlyDeleted?.get(item);
+            if (ctl === undefined) {
+                ctl = this.createItemContainer();
+                const template = this.#getItemTemplateContent(item);
+                ctl.append(template.cloneNode(true));
+            }
+            else {
+                this.#recentlyDeleted!.delete(item);
+            }
+
             ctl.model = item; // safe as we are descendant of BindableControl so if we are created then so is BindalbeControl
 
             const slotName = 'i-' + this.#slotCount++;
-
             ctl.slot = slotName;
             this.appendChild(ctl);
 
@@ -247,12 +257,21 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
         while(deleted > 0) {
             const slot = div.children[index + --deleted] as HTMLSlotElement;
-            for (const assigned of slot.assignedElements()) assigned.remove();
+            const assigned = slot.assignedElements();
+            if (assigned.length !== 1) throw new Error('Unexpected state.');
+            const model = assigned[0] as BindableControl;
+            if (this.#recentlyDeleted === undefined) {
+                this.#recentlyDeleted = new Map();
+                enqueTask(ItemsControl.#clearRecentlyDeletedCallback, this);
+            }
+            this.#recentlyDeleted.set(model.model, model);
+            model.remove();
             slot.remove();
         }
     };
 
     override onDisconnectedFromDom(): void {
+        this.#recentlyDeleted = undefined;
         super.onDisconnectedFromDom();
         this.onItemsChanged();
         this.#lastUsedTemplate = undefined;
@@ -280,5 +299,9 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
     override onAncestorsChanged(): void {
         this.#lastUsedTemplate = undefined;
+    }
+
+    static #clearRecentlyDeletedCallback(ctl: ItemsControl) {
+        ctl.#recentlyDeleted = undefined;
     }
 }

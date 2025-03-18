@@ -149,7 +149,8 @@ const getProxySymbol = Symbol("Target");
 export const hasListeners: unique symbol = Symbol("hasListeners");
 
 class TrackingProxyHandler<T extends { [hasListeners]?: boolean; }> implements ProxyHandler<T>, IChangeTracker<T> {
-    #listeners?: any []; // we pack listeners in triplets for efficiency [key, listener, token]
+    #listeners?: any []; // we pack listeners in triplets for efficiency [key, listener, token]; when deleted all are undefined
+    #listenersLen = 0;
     proxy!: T;
 
     constructor(target: T) {
@@ -160,12 +161,16 @@ class TrackingProxyHandler<T extends { [hasListeners]?: boolean; }> implements P
     }
 
     #notifyListeners(key: string | symbol) {
-        if (this.#listeners === undefined) return;
-        for (let x = 0; x < this.#listeners.length; x += 3) {
-            const k = this.#listeners[x];
+        const listeners = this.#listeners;
+        const len = this.#listenersLen;
+
+        if (listeners === undefined) return;
+
+        for (let x = 0; x < len; x += 3) {
+            const k = listeners[x];
             if (k === key) {
-                const handler = this.#listeners[x + 1] as ChangeListener<any, any>;
-                const token = this.#listeners[x + 2];
+                const handler = listeners[x + 1] as ChangeListener<any, any>;
+                const token = listeners[x + 2];
                 try {
                     handler(this.proxy, token);
                 }
@@ -177,10 +182,23 @@ class TrackingProxyHandler<T extends { [hasListeners]?: boolean; }> implements P
     }
 
     [addListener]<TTok>(handler: ChangeListener<T, TTok>, key: any, token: TTok) {
-        const noListeners = this.#listeners === undefined || this.#listeners.length === 0;
-
         this.#listeners ??= [];
-        this.#listeners.push(key, handler, token);
+
+        const listeners = this.#listeners;
+        let len = this.#listenersLen;
+
+        const noListeners = len === 0;
+
+        if (len < listeners.length) {
+            listeners[len++] = key;
+            listeners[len++] = handler;
+            listeners[len++] = token;
+            this.#listenersLen = len;
+        }
+        else {
+            this.#listeners.push(key, handler, token);
+            this.#listenersLen += 3;
+        }
 
         if (noListeners) this.proxy[hasListeners] = true;
     }
@@ -189,16 +207,25 @@ class TrackingProxyHandler<T extends { [hasListeners]?: boolean; }> implements P
         const listeners = this.#listeners;
         if (listeners === undefined) return;
 
-        const idx = indexOfTriplet(listeners, key, handler, token);
+        let len = this.#listenersLen;
+
+        const idx = indexOfTriplet(listeners, key, handler, token, len);
         if (idx < 0) return;
 
-        const lastIdx = listeners.length - 3;
-        listeners[idx] = listeners[lastIdx];
-        listeners[idx + 1] = listeners[lastIdx + 1];
-        listeners[idx + 2] = listeners[lastIdx + 2];
-        listeners.splice(lastIdx, 3);
+        listeners[--len] = listeners[idx + 2];
+        listeners[--len] = listeners[idx + 1];
+        listeners[--len] = listeners[idx];
+        listeners[idx + 2] = undefined;
+        listeners[idx + 1] = undefined;
+        listeners[idx + 0] = undefined;
 
-        if (listeners.length === 0) this.proxy[hasListeners] = false;
+        this.#listenersLen = len;
+
+        if (len + len <= listeners.length) {
+            listeners.splice(len);
+        }
+
+        if (len === 0) this.proxy[hasListeners] = false;
     }
 
     get(target: T, property: string | symbol, receiver: any): any {

@@ -42,14 +42,17 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
         if (this.#displayedItems === undefined) return;
 
-        const itemContainerAssigned = this.#itemContainerTemplateSlot.assignedElements();
-        let el: HTMLElement | null;
-        if (itemContainerAssigned.length === 1 && itemContainerAssigned[0] instanceof HTMLTemplateElement) {
-            el = (itemContainerAssigned[0].content.cloneNode(true) as DocumentFragment).firstElementChild as (HTMLElement | null);
+        const div = this.itemsContainer;
+        let chNum = this.children.length;
+        while (chNum-- > 0) {
+            const ch = this.children[chNum];
+
+            if (ch instanceof HTMLSlotElement && ch.name.startsWith('i-')) {
+                for(const x of ch.assignedElements()) x.remove();
+                ch.remove();
+            }
         }
-        el ??= document.createElement('div')
-        el.part.add('container');
-        this.shadowRoot!.replaceChild(this.itemsContainer, el);
+        div.innerHTML = '';
 
         for (const item of this.#displayedItems) {
             const ctl = this.createItemContainer();
@@ -66,7 +69,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
             const slot = document.createElement('slot');
             slot.name = slotName;
-            el.appendChild(slot);
+            div.appendChild(slot);
         }
     }
 

@@ -16,6 +16,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     #slotCount = 0;
     #itemToTemplateId?: (item: any) => string;
     #recentlyDeleted?: Map<any, BindableControl>;
+    #lastUsedItemToTemplateId?: ((item: any) => string);
 
     constructor() {
         super();
@@ -82,7 +83,8 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     }
 
     get itemToTemplateId(): ((item: any) => string) | undefined {
-        return this.getProperty('itemToTemplateId', this.#itemToTemplateId);
+        this.#lastUsedItemToTemplateId = this.getProperty('itemToTemplateId', this.#itemToTemplateId);
+        return this.#lastUsedItemToTemplateId;
     }
 
     set itemToTemplateId(func: ((item: any) => string) | undefined) {
@@ -92,7 +94,11 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     }
 
     onItemToTemplateIdChanged() {
-        this.#rebuildItems();
+        const prev = this.#lastUsedItemToTemplateId;
+        const current = this.itemToTemplateId;
+        if (prev !== current) {
+            this.#rebuildItems();
+        }
     }
 
     getItemToTemplateId(item: any): string {

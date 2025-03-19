@@ -20,6 +20,15 @@ export interface IArrayChangeTracker<T> extends IChangeTracker<T[]> {
     [removeArrayListener](handler: ArrayChangeListener<T>): void;
 }
 
+export class DependencyTrackingMetrics {
+    static allocatedProxies = 0;
+    static proxyListeners = 0;
+    static allocatedArrayProxies = 0;
+    static arrayProxyListeners = 0;
+    static evals = 0;
+    static clears = 0;
+}
+
 let accessDependencies: undefined | (any[]);
 let accessDependenciesExistingStart = 0;
 let accessDependenciesExistingEnd = 0;
@@ -158,6 +167,8 @@ class TrackingProxyHandler<T extends { [hasListeners]?: boolean; }> implements P
         if (proto !== null) {
             if (!protoToGettersAndSetters.has(proto)) createGettersAndSetters(proto);
         }
+
+        ++DependencyTrackingMetrics.allocatedProxies;
     }
 
     #notifyListeners(key: string | symbol) {
@@ -201,6 +212,8 @@ class TrackingProxyHandler<T extends { [hasListeners]?: boolean; }> implements P
         }
 
         if (noListeners) this.proxy[hasListeners] = true;
+
+        ++DependencyTrackingMetrics.proxyListeners;
     }
 
     [removeListener]<TTok>(handler: ChangeListener<T, TTok>, key: any, token: any) {
@@ -226,6 +239,8 @@ class TrackingProxyHandler<T extends { [hasListeners]?: boolean; }> implements P
         }
 
         if (len === 0) this.proxy[hasListeners] = false;
+
+        --DependencyTrackingMetrics.proxyListeners;
     }
 
     get(target: T, property: string | symbol, receiver: any): any {
@@ -268,6 +283,10 @@ class ArrayTrackingProxyHandlerBase<T> implements IArrayChangeTracker<T> {
     protected _lengthListeners?: (any | ChangeListener<T[], any>)[];
     protected _listeners?: ArrayChangeListener<T>[];
 
+    constructor() {
+        ++DependencyTrackingMetrics.allocatedArrayProxies;
+    }
+
     [addListener]<TTok>(handler: ChangeListener<T[], TTok>, key: any, token: TTok) {
         if (typeof key === 'number') {
             let map = this._perIndexListeners;
@@ -306,6 +325,8 @@ class ArrayTrackingProxyHandlerBase<T> implements IArrayChangeTracker<T> {
     [addArrayListener](handler: ArrayChangeListener<T>) {
         if (this._listeners === undefined) this._listeners = [];
         this._listeners.push(handler);
+
+        ++DependencyTrackingMetrics.arrayProxyListeners;
     }
 
     [removeArrayListener](handler: ArrayChangeListener<T>) {
@@ -314,6 +335,8 @@ class ArrayTrackingProxyHandlerBase<T> implements IArrayChangeTracker<T> {
         if (idx < 0) return;
         this._listeners[idx] = this._listeners[this._listeners.length - 1];
         this._listeners.splice(this._listeners.length - 1, 1);
+        
+        ++DependencyTrackingMetrics.arrayProxyListeners;
     }
 }
 
@@ -570,6 +593,8 @@ export function startEvalScope(dependencies: any[]) {
 }
 
 export function evalTrackedScoped(s: string, thisArg: any,) {
+    ++DependencyTrackingMetrics.evals;
+
     const func = Function("self", "window", "globals", "console", "top", `"use strict";return (${s});`);
     return func.apply(thisArg);
 }
@@ -583,6 +608,8 @@ export function endEvalScope<TObj extends {}, TTok>(listener: ChangeListener<TOb
 }
 
 export function evalTracked<TObj extends {}, TTok>(s: string, thisArg: any, listener: ChangeListener<TObj, TTok>, token: TTok, dependencies: any[]) {
+    ++DependencyTrackingMetrics.evals;
+
     const prevDependencies = accessDependencies;
     const prevStart = accessDependenciesExistingStart;
     const prevEnd = accessDependenciesExistingEnd;
@@ -604,6 +631,8 @@ export function evalTracked<TObj extends {}, TTok>(s: string, thisArg: any, list
 }
 
 export function clearDependencies<TObj extends {}, TTok>(listener: ChangeListener<TObj, TTok>, token: TTok, dependencies: any[]) {
+    ++DependencyTrackingMetrics.clears;
+
     for (let x = 0; x < dependencies.length; x += 2) {
         const key = dependencies[x];
         const tracker = dependencies[x + 1] as IChangeTracker<TObj>;

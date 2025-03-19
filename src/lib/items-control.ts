@@ -172,9 +172,9 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
         const div = this.itemsContainer;
 
-        let chNum = this.children.length;
+        let chNum = div.children.length;
         while (chNum-- > 0) {
-            const ch = this.children[chNum];
+            const ch = div.children[chNum];
 
             if (ch instanceof HTMLSlotElement && ch.name.startsWith('i-')) {
                 for(const x of ch.assignedElements()) x.remove();

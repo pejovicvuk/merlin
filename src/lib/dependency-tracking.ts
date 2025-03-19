@@ -593,13 +593,13 @@ export function startEvalScope(dependencies: any[]) {
 }
 
 export function evalTrackedScoped(s: string, thisArg: any,) {
-    ++DependencyTrackingMetrics.evals;
-
     const func = Function("self", "window", "globals", "console", "top", `"use strict";return (${s});`);
     return func.apply(thisArg);
 }
 
 export function endEvalScope<TObj extends {}, TTok>(listener: ChangeListener<TObj, TTok>, token: TTok) {
+    ++DependencyTrackingMetrics.evals;
+    
     reconcileAccessDependencies(listener, token);
 
     accessDependenciesExistingEnd = dependencyChain.pop() as number;

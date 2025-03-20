@@ -64,6 +64,7 @@ export class HtmlControl extends BindableControl implements
     HtmlControlBindableProperty<'classes', string | undefined>,
     HtmlControlBindableProperty<'states', string | undefined>,
     HtmlControlBindableProperty<'canDrag', boolean | undefined>,
+    HtmlControlBindableProperty<'adoptedStyleSheets', readonly CSSStyleSheet[] | CSSStyleSheet | undefined>,
     HtmlControlAmbientProperty<'enabled', boolean | undefined>  {
 
     readonly #scheduledEvaluations = new Map<string, number>();
@@ -71,8 +72,10 @@ export class HtmlControl extends BindableControl implements
     #numAdoptedStyleSheets?: number;
     #internals?: ElementInternals;
     #explicitEnabled?: boolean;
+    #explicitAdoptedStyleSheets?: readonly CSSStyleSheet[] | CSSStyleSheet;
+    #lastKnownAdoptedStyleSheets?: readonly CSSStyleSheet[] | CSSStyleSheet
 
-    static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes', 'states', 'canDrag'];
+    static override readonly bindableProperties = [...BindableControl.bindableProperties, 'classes', 'states', 'canDrag', 'adoptedStyleSheets'];
     static override ambientProperties = [...BindableControl.ambientProperties, 'enabled'];
     static override readonly additionalAttributes = [...BindableControl.additionalAttributes, 'style-sheets', ...map(events, x => 'on-' + x)];
 
@@ -142,6 +145,48 @@ export class HtmlControl extends BindableControl implements
 
     onStyleSheetsChanged() {
         this.#evaluateStyleSheets();
+    }
+
+    get adoptedStyleSheets() {
+        return this.getProperty<readonly CSSStyleSheet[] | CSSStyleSheet | undefined>('adoptedStyleSheets', this.#explicitAdoptedStyleSheets);
+    }
+
+    set adoptedStyleSheets(sheets: readonly CSSStyleSheet[] | CSSStyleSheet | undefined) {
+        const old = this.#explicitAdoptedStyleSheets;
+        this.#explicitAdoptedStyleSheets = sheets;
+        this.notifyPropertySetExplicitly('adoptedStyleSheets', old, this.#explicitAdoptedStyleSheets);
+    }
+
+    onAdoptedStyleSheetsChanged() {
+        let ss: readonly CSSStyleSheet[] | CSSStyleSheet | undefined;
+        try {
+            ss = this.adoptedStyleSheets;
+        }
+        catch{
+            ss = undefined;
+        }
+
+        if (ss === this.#lastKnownAdoptedStyleSheets) return;
+        
+        if (this.#lastKnownAdoptedStyleSheets instanceof Array) {
+            for(const sts of this.#lastKnownAdoptedStyleSheets) {
+                this.unadoptStyleSheet(sts);
+            }
+        }
+        else if (typeof this.#lastKnownAdoptedStyleSheets === 'object') {
+            this.unadoptStyleSheet(this.#lastKnownAdoptedStyleSheets);
+        }
+
+        if (ss instanceof Array) {
+            for(const sts of ss) {
+                this.adoptStyleSheet(sts);
+            }
+        }
+        else if (typeof ss === 'object') {
+            this.adoptStyleSheet(ss);
+        }
+
+        this.#lastKnownAdoptedStyleSheets = ss;
     }
 
     get states() {

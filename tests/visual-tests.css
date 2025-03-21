@@ -47,6 +47,8 @@ body {
 
 items-control::part(container) {
     background-color: aliceblue;
+    display: flex;
+    flex-direction: column;
 }
 
 items-control > model-control {

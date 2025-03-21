@@ -10,14 +10,22 @@ standardTemplate.innerHTML = '<text-block text="this"></text-block>';
 const shadowHtml = '<slot name="item-template"></slot><slot name="item-container-template"><template><model-control></model-control></template></slot><div part="container"></div>';
 
 export class ItemsControl extends HtmlControl implements HtmlControlBindableProperty<'items', Iterable<any>>, HtmlControlBindableProperty<'itemToTemplateId', (item: any) => string> {
-    static override bindableProperties = [...HtmlControl.bindableProperties, 'items', 'itemToTemplateId'];
+    static override bindableProperties = [...HtmlControl.bindableProperties, 'items', 'itemToTemplateId', 'virtualized'];
 
     #displayedItems?: Iterable<any>;
     #slotCount = 0;
     #itemToTemplateId?: (item: any) => string;
     #recentlyDeleted?: Map<any, BindableControl>;
     #lastUsedItemToTemplateId?: ((item: any) => string);
-
+    //items for virtualization
+    #virtualized: boolean = false;
+    #scrollTop: number = 0;
+    #itemHeight: number = 16; //hardcoded for now
+    #windowHeight: number = 0;
+    #startIndex: number = 0;
+    #endIndex: number = 0;
+    #visibleItems: number = 0;
+//
     constructor() {
         super();
         const shadow = this.attachShadow({ mode: "open", delegatesFocus: true });
@@ -151,8 +159,129 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     get itemsContainer(): HTMLElement {
         return this.shadowRoot!.querySelector('div[part="container"]')!;
     }
+    #onScroll = (event: Event) => {
+        this.#scrollTop = (event.target as HTMLElement).scrollTop;
+        
+        const newStartIndex: number = Math.floor(this.#scrollTop / this.#itemHeight);
+        
+        if (newStartIndex !== this.#startIndex) {
+            this.#startIndex = newStartIndex;
+            this.#visibleItems = Math.ceil(this.#windowHeight / this.#itemHeight);
+            this.#endIndex = this.#startIndex + this.#visibleItems;
+            
+            console.log('Scrolled to position:', this.#scrollTop);
+            console.log('New visible range:', this.#startIndex, 'to', this.#endIndex);
+            
+            if (this.#displayedItems) {
+                const itemsArray = Array.isArray(this.#displayedItems) ? 
+                    this.#displayedItems : Array.from(this.#displayedItems);
+                this.#renderVisibleItems(itemsArray);
+            }
+        }
+    };
+    #setupVirtualization() {
+        this.itemsContainer.removeEventListener('scroll', this.#onScroll);
+        this.itemsContainer.addEventListener('scroll', this.#onScroll);
 
-    onItemsChanged() {
+        this.itemsContainer.style.overflow = 'auto';
+
+        this.itemsContainer.style.height = '600px';
+        this.itemsContainer.style.border = '1px solid red';
+
+        this.#windowHeight = this.itemsContainer.clientHeight; //mozda beskorisno
+        this.#startIndex = Math.floor(this.#scrollTop / this.#itemHeight);
+        this.#visibleItems = Math.ceil(this.#windowHeight / this.#itemHeight);
+        this.#endIndex = this.#startIndex + this.#visibleItems;
+    }
+    onItemsChangedVirtualized() {
+        if (!this.#virtualized) return;
+        
+        this.#setupVirtualization();
+        
+        let items: Iterable<any> | undefined;
+        try {
+            items = this.items;
+        } catch {
+            items = undefined;
+        }
+        
+        if (items === this.#displayedItems) return;
+        
+        if (Array.isArray(this.#displayedItems)) {
+            const tracker = getTracker(this.#displayedItems);
+            if (tracker !== undefined) {
+                tracker[removeArrayListener](this.#onArrayChanged);
+            }
+        }
+        
+        const div = this.itemsContainer;
+        div.innerHTML = '';
+        
+        this.#displayedItems = items;
+        
+        if (items !== undefined) {
+            if (Array.isArray(this.#displayedItems)) {
+                const tracker = getTracker(this.#displayedItems);
+                if (tracker !== undefined) {
+                    tracker[addArrayListener](this.#onArrayChanged);
+                }
+            }
+            
+            const itemsArray = Array.isArray(items) ? items : Array.from(items);
+            this.#renderVisibleItems(itemsArray);
+        }
+    }
+
+    #renderVisibleItems(items: any[]) {
+        const div = this.itemsContainer;
+        
+        const existingSlots = this.querySelectorAll('[slot^="i-"]');
+        existingSlots.forEach(el => el.remove());
+        
+        div.innerHTML = '';
+        
+        const totalHeight: number = items.length * this.#itemHeight;
+        const container: HTMLElement = document.createElement('div');
+        container.style.height = `${totalHeight}px`; //ne radi?
+        container.style.position = 'relative';
+        container.style.width = '100%';
+        div.appendChild(container);
+        
+        const overscan = 5;
+        
+        const startWithOverscan = Math.max(0, this.#startIndex - overscan);
+        const endWithOverscan = Math.min(items.length, this.#endIndex + overscan);
+        
+        console.log(`Rendering items from ${startWithOverscan} to ${endWithOverscan} (total: ${items.length})`);
+        
+        for (let i = startWithOverscan; i < endWithOverscan; i++) {
+            const item = items[i];
+            
+            const ctl = this.createItemContainer();
+            const template = this.#getItemTemplateContent(item);
+            ctl.append(template.cloneNode(true));
+            ctl.model = item;
+            
+            const slotName: string = `i-${i}`;
+            ctl.slot = slotName;
+            ctl.style.width = '100%';
+            this.appendChild(ctl);
+            
+            const slot: HTMLSlotElement = document.createElement('slot');
+            slot.name = slotName;
+            slot.style.position = 'absolute';
+            slot.style.top = `${i * this.#itemHeight}px`;
+            slot.style.left = '0';
+            slot.style.right = '0';
+            slot.style.width = '100%';
+            slot.style.height = `${this.#itemHeight}px`;
+            slot.style.display = 'block';
+            
+            container.appendChild(slot);
+        }
+    }
+
+    onItemsChangedOriginal() {
         let items: Iterable<any> | undefined;
         try {
             items = this.items;
@@ -191,7 +320,6 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
                     tracker[addArrayListener](this.#onArrayChanged);
                 }
             }
-
             for (const item of items) {
                 const ctl = this.createItemContainer();
                 const template = this.#getItemTemplateContent(item);
@@ -206,10 +334,39 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
                 const slot = document.createElement('slot');
                 slot.name = slotName;
                 div.appendChild(slot);
-            }
+            }     
         }
     }
-
+    
+    onItemsChanged() {
+        if (this.#virtualized) {
+            this.onItemsChangedVirtualized();
+        }
+        else {
+            this.onItemsChangedOriginal();
+        }
+    }
+    get virtualized(): boolean | undefined {
+        return this.getProperty('virtualized', this.#virtualized);
+    }
+    set virtualized(value: boolean){
+        const prev = this.#virtualized;
+        this.#virtualized = value;
+        this.notifyPropertySetExplicitly('virtualized', prev, value);
+    }
+    static override get observedAttributes() {
+        return [...super.observedAttributes, 'virtualized'];
+    }
+    
+    override attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+        super.attributeChangedCallback(name, oldValue, newValue);
+        
+        if (name === 'virtualized') {
+            // Convert attribute to boolean property
+            this.virtualized = newValue !== null;
+        }
+    }
+    
     #onArrayChanged = (arr: any[], index: number, inserted: number, deleted: number, deletedItems: any | any[] | undefined) => {
         const div = this.itemsContainer;
 

@@ -26,6 +26,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     #startIndex: number = 0;
     #endIndex: number = 0;
     #visibleItems: number = 0;
+    #spacerElement: HTMLElement | null = null;
 
     constructor() {
         super();
@@ -283,6 +284,18 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         const div = this.itemsContainer;
         div.innerHTML = '';
         
+        // Create spacer element if it doesn't exist
+        if (!this.#spacerElement) {
+            this.#spacerElement = document.createElement('div');
+            this.#spacerElement.className = 'virtual-spacer';
+            this.#spacerElement.style.width = '1px';
+            this.#spacerElement.style.visibility = 'hidden';
+            this.#spacerElement.style.position = 'absolute';
+            this.#spacerElement.style.left = '0';
+            this.#spacerElement.style.pointerEvents = 'none';
+            div.appendChild(this.#spacerElement);
+        }
+        
         this.#displayedItems = items;
         
         if (items !== undefined) {
@@ -311,20 +324,11 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         
         this.#estimatedTotalHeight = items.length * this.#itemHeight;
         
-        let spacer: HTMLElement = scrollContainer.querySelector('.virtual-spacer') || (() => {
-            const el = document.createElement('div');
-            el.className = 'virtual-spacer';
-            el.style.width = '1px';
-            el.style.visibility = 'hidden';
-            el.style.position = 'absolute';
-            el.style.left = '0';
-            el.style.pointerEvents = 'none';
-            scrollContainer.appendChild(el);
-            return el;
-        })();
-        
-        spacer.style.height = '1px';
-        spacer.style.top = `${this.#estimatedTotalHeight}px`;
+        // Use the existing spacer element
+        if (this.#spacerElement) {
+            this.#spacerElement.style.height = '1px';
+            this.#spacerElement.style.top = `${this.#estimatedTotalHeight}px`;
+        }
         
         console.log('Total items:', items.length);
         console.log('Item height:', this.#itemHeight);
@@ -470,6 +474,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         super.attributeChangedCallback(name, oldValue, newValue);
         
         if (name === 'virtualized') {
+            // Convert attribute to boolean property
             this.virtualized = newValue !== null;
         }
     }

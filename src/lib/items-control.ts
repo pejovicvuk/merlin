@@ -17,16 +17,14 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     #itemToTemplateId?: (item: any) => string;
     #recentlyDeleted?: Map<any, BindableControl>;
     #lastUsedItemToTemplateId?: ((item: any) => string);
-    //items for virtualization
-    #virtualized: boolean = false;
-    #scrollTop: number = 0;
-    #itemHeight: number = 0;
+    #virtualized: boolean = false; 
+    #itemToElementMap = new Map<any, BindableControl>();
     #estimatedTotalHeight: number = 0;
-    #windowHeight: number = 0;
-    #startIndex: number = 0;
-    #endIndex: number = 0;
-    #visibleItems: number = 0;
-    #spacerElement: HTMLElement | null = null;
+    #observer?: IntersectionObserver;
+    #lastRenderedIndex: number = 0;
+    #firstRenderedIndex: number = 0;
+    #currentPaddingTop: number = 0;
+    #currentPaddingBottom: number = 0;
 
     constructor() {
         super();
@@ -161,119 +159,49 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     get itemsContainer(): HTMLElement {
         return this.shadowRoot!.querySelector('div[part="container"]')!;
     }
-    #onScroll = (event: Event) => {
-        this.#estimateItemHeight();
-        console.log('Item height:', this.#itemHeight);
-        this.#scrollTop = (event.target as HTMLElement).scrollTop;
-        
-        const newStartIndex: number = Math.floor(this.#scrollTop / this.#itemHeight);
-        
-        if (newStartIndex !== this.#startIndex) {
-            this.#startIndex = newStartIndex;
-            this.#visibleItems = Math.ceil(this.#windowHeight / this.#itemHeight);
-            this.#endIndex = this.#startIndex + this.#visibleItems;
-            
-            if (this.#displayedItems) {
-                const itemsArray = Array.isArray(this.#displayedItems) ? 
-                    this.#displayedItems : Array.from(this.#displayedItems);
-                this.#renderVisibleItems(itemsArray);
-            }
-        }
-    };
-    #setupVirtualization() {
-        this.itemsContainer.removeEventListener('scroll', this.#onScroll);
-        this.itemsContainer.addEventListener('scroll', this.#onScroll);
 
-        this.itemsContainer.style.overflow = 'auto';
-        this.itemsContainer.style.height = '600px';
-        this.itemsContainer.style.position = 'relative';
-
-        //get the height of the first 100 items
-        let items: any[] = [];
-        try {
-            const itemsIterable = this.items;
-            if (itemsIterable) {
-                items = Array.isArray(itemsIterable) ? itemsIterable : Array.from(itemsIterable);
-            }
-        } catch {
-            
-        }
-        
-        if (items.length > 0) {
-            const div = this.itemsContainer;
-            div.innerHTML = '';
-            this.querySelectorAll('[slot^="i-"]').forEach(el => el.remove());
-            
-            const sampleSize: number = Math.min(100, items.length);
-            
-            for (let i = 0; i < sampleSize; i++) {
-                const item = items[i];
-                
-                const ctl: BindableControl = this.createItemContainer();
-                const template = this.#getItemTemplateContent(item);
-                ctl.append(template.cloneNode(true));
-                ctl.model = item;
-
-                const slotName: string = 'i-' + this.#slotCount++;
-
-                ctl.slot = slotName;
-                this.appendChild(ctl);
-
-                const slot = document.createElement('slot');
-                slot.name = slotName;
-                div.appendChild(slot);
-            }
-            
-            div.offsetHeight;
-            this.#estimateItemHeight();
-
-            div.innerHTML = '';
-            this.querySelectorAll('[slot^="i-"]').forEach(el => el.remove());
-        }
-        this.#windowHeight = this.itemsContainer.clientHeight;
-        this.#startIndex = Math.floor(this.#scrollTop / this.#itemHeight);
-        this.#visibleItems = Math.ceil(this.#windowHeight / this.#itemHeight);
-        this.#endIndex = this.#startIndex + this.#visibleItems;
+    get virtualized(): boolean | undefined {
+        return this.getProperty('virtualized', this.#virtualized);
     }
 
-    #estimateItemHeight() {
-        const visibleItems = this.querySelectorAll('[slot^="i-"]');
-        if (visibleItems.length === 0) return this.#itemHeight;
-        
-        let count: number = 0;
-        let currentMeasuredHeight: number = 0;
-        
-        visibleItems.forEach(item => {
-            const height = (item as HTMLElement).offsetHeight;
-            if (height > 0) {
-                currentMeasuredHeight += height;
-                count++;
-            }
-        });
-        
-        if (count === 0) return this.#itemHeight;
-        const currentAverage: number = currentMeasuredHeight / count;
-        
-        const previousWeight: number = this.#itemHeight > 0 ? 0.7 : 0;
-        const newWeight: number = 1 - previousWeight;
-        this.#itemHeight = (this.#itemHeight * previousWeight) + (currentAverage * newWeight);
-        
-        return this.#itemHeight;
+    set virtualized(value: boolean){
+        const prev = this.#virtualized;
+        this.#virtualized = value;
+        this.notifyPropertySetExplicitly('virtualized', prev, value);
     }
+    static override get observedAttributes() {
+        return [...super.observedAttributes, 'virtualized'];
+    }
+    override attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+        super.attributeChangedCallback(name, oldValue, newValue);
+        
+        if (name === 'virtualized') {
+            this.virtualized = newValue !== null;
+        }
+    }
+
+    onItemsChanged() {
+        if (this.virtualized) {
+            this.onItemsChangedVirtualized();
+        } else {
+            this.onItemsChangedOriginal();
+        }
+    }
+
     onItemsChangedVirtualized() {
-        if (!this.#virtualized) return;
+        if (!Array.isArray(this.items)) {
+            return this.onItemsChangedOriginal();
+        }
         
-        this.#setupVirtualization();
-
-        let items: Iterable<any> | undefined;
+        let items: any[] | undefined;
         try {
-            items = this.items;
+            items = this.items as any[];
         } catch {
             items = undefined;
         }
 
         if (items === this.#displayedItems) return;
-        
+
         if (Array.isArray(this.#displayedItems)) {
             const tracker = getTracker(this.#displayedItems);
             if (tracker !== undefined) {
@@ -281,23 +209,17 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
             }
         }
         
+        this.#itemToElementMap.clear();
+        
         const div = this.itemsContainer;
         div.innerHTML = '';
         
-        // Create spacer element if it doesn't exist
-        if (!this.#spacerElement) {
-            this.#spacerElement = document.createElement('div');
-            this.#spacerElement.className = 'virtual-spacer';
-            this.#spacerElement.style.width = '1px';
-            this.#spacerElement.style.visibility = 'hidden';
-            this.#spacerElement.style.position = 'absolute';
-            this.#spacerElement.style.left = '0';
-            this.#spacerElement.style.pointerEvents = 'none';
-            div.appendChild(this.#spacerElement);
-        }
+        div.style.position = 'relative';
+        div.style.overflow = 'auto';
+        div.style.height = this.getAttribute('height') || '100vh';
         
         this.#displayedItems = items;
-        
+
         if (items !== undefined) {
             if (Array.isArray(this.#displayedItems)) {
                 const tracker = getTracker(this.#displayedItems);
@@ -305,92 +227,195 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
                     tracker[addArrayListener](this.#onArrayChanged);
                 }
             }
-            
-            const itemsArray = Array.isArray(items) ? items : Array.from(items);
-            this.#renderVisibleItems(itemsArray);
-        }
-    }
 
-    #renderVisibleItems(items: any[]) {
-        const scrollContainer: HTMLElement = this.itemsContainer;
-        
-        if (!scrollContainer.style.height) {
-            scrollContainer.style.height = '600px';
-        }
-        scrollContainer.style.overflow = 'auto';
-        scrollContainer.style.position = 'relative';
-        scrollContainer.style.display = 'flex';
-        scrollContainer.style.flexDirection = 'column';
-        
-        this.#estimatedTotalHeight = items.length * this.#itemHeight;
-        
-        // Use the existing spacer element
-        if (this.#spacerElement) {
-            this.#spacerElement.style.height = '1px';
-            this.#spacerElement.style.top = `${this.#estimatedTotalHeight}px`;
-        }
-        
-        console.log('Total items:', items.length);
-        console.log('Item height:', this.#itemHeight);
-        console.log('Total virtual height:', this.#estimatedTotalHeight);
-        console.log('Scroll container height:', scrollContainer.offsetHeight);
-        
-        const overscan: number = 5;
-        const startWithOverscan: number = Math.max(0, this.#startIndex - overscan);
-        const endWithOverscan: number = Math.min(items.length, this.#endIndex + overscan);
-        
-        const shouldBeVisible: Set<number> = new Set<number>();
-        for (let i = startWithOverscan; i < endWithOverscan; i++) {
-            shouldBeVisible.add(i);
-        }
-        
-        const currentSlots: Map<number, HTMLElement> = new Map<number, HTMLElement>();
-        this.querySelectorAll('[slot^="i-"]').forEach(el => {
-            const index = parseInt(el.getAttribute('slot')!.substring(2));
-            currentSlots.set(index, el as HTMLElement);
-        });
-        
-        currentSlots.forEach((el, index) => {
-            if (!shouldBeVisible.has(index)) {
-                el.remove();
-                const slot = scrollContainer.querySelector(`slot[name="i-${index}"]`);
-                if (slot) slot.remove();
-            }
-        });
-        
-        for (let i = startWithOverscan; i < endWithOverscan; i++) {
-            const item = items[i];
-            const slotName = `i-${i}`;
+            const initialRenderCount: number = 100;
             
-            if (!currentSlots.has(i)) {
-                const ctl: BindableControl = this.createItemContainer();
+            const virtualContainer = document.createElement('div');
+            virtualContainer.style.position = 'relative';
+            virtualContainer.style.display = 'flex';
+            virtualContainer.style.flexDirection = 'column';
+            div.appendChild(virtualContainer);
+
+            this.#lastRenderedIndex = Math.min(items.length - 1, initialRenderCount - 1);
+
+            this.#observer = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    const element = entry.target as BindableControl;
+                    const item = element.model;
+                    const itemIndex = (items as any[]).indexOf(item);
+                    
+                    if (entry.isIntersecting) {
+                        if (itemIndex === this.#lastRenderedIndex && itemIndex < items.length - 1) {
+                            const nextIndex: number = itemIndex + 1;
+                            if (!this.#itemToElementMap.has(items[nextIndex])) {
+                                const virtualContainer = this.itemsContainer.firstElementChild as HTMLElement;
+                                const nextItem = items[nextIndex];
+                                
+                                const ctl = this.#renderItemAtIndex(nextIndex);
+                                
+                                if (ctl) {
+                                    this.#itemToElementMap.set(nextItem, ctl);
+
+                                    if (this.#itemToElementMap.size > initialRenderCount) {
+                                        const firstItem = items[this.#firstRenderedIndex];
+                                        const firstElement = this.#itemToElementMap.get(firstItem);
+                                        
+                                        if (firstElement) {
+                                            requestAnimationFrame(() => {
+                                                const rect = firstElement.getBoundingClientRect();
+                                                
+                                                const slotName = firstElement.slot;
+                                                const slot = virtualContainer.querySelector(`slot[name="${slotName}"]`);
+                                                
+                                                this.#currentPaddingTop = Math.floor(parseFloat(virtualContainer.style.paddingTop));
+                                                const newPadding = Math.max(0, this.#currentPaddingTop + rect.height);
+                                                virtualContainer.style.paddingTop = `${newPadding}px`;
+                                                
+                                                if (slot) slot.remove();
+                                                this.#itemToElementMap.delete(firstItem);
+                                                firstElement.remove();
+                                                this.#firstRenderedIndex++;
+                                            });
+                                        }
+                                    }
+                                    
+                                    this.#lastRenderedIndex = nextIndex;
+                                    
+                                    requestAnimationFrame(() => {
+                                        const rect = ctl.getBoundingClientRect();
+                                        if (rect.height > 0) {          
+                                            this.#currentPaddingBottom = Math.floor(parseFloat(virtualContainer.style.paddingBottom));
+                                            const newPadding = Math.max(0, this.#currentPaddingBottom - rect.height);
+                                            virtualContainer.style.paddingBottom = `${newPadding}px`;
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                        
+                        if (itemIndex === this.#firstRenderedIndex && itemIndex > 0) {
+                            const prevIndex = itemIndex - 1;
+                            if (!this.#itemToElementMap.has(items[prevIndex])) {
+                                const virtualContainer = this.itemsContainer.firstElementChild as HTMLElement;
+                                const prevItem = items[prevIndex];
+                                
+                                const ctl = this.#renderItemAtIndex(prevIndex, true);
+                                
+                                if (ctl) {
+                                    this.#itemToElementMap.set(prevItem, ctl);
+                                    
+                                    if (this.#itemToElementMap.size > initialRenderCount) {
+                                        const lastItem = items[this.#lastRenderedIndex];
+                                        const lastElement = this.#itemToElementMap.get(lastItem);
+                                        
+                                        if (lastElement) {
+                                            requestAnimationFrame(() => {
+                                                const rect = lastElement.getBoundingClientRect();
+                                                
+                                                const slotName = lastElement.slot;
+                                                const slot = virtualContainer.querySelector(`slot[name="${slotName}"]`);
+                                                
+                                                this.#currentPaddingBottom = Math.floor(parseFloat(virtualContainer.style.paddingBottom));
+                                                const newPadding = Math.max(0, this.#currentPaddingBottom + rect.height);
+                                                virtualContainer.style.paddingBottom = `${newPadding}px`;
+                                                
+                                                if (slot) slot.remove();
+                                                this.#itemToElementMap.delete(lastItem);
+                                                lastElement.remove();
+                                                this.#lastRenderedIndex--;
+                                            });
+                                        }
+                                    }
+                                    
+                                    this.#firstRenderedIndex = prevIndex;
+                                    
+                                    requestAnimationFrame(() => {
+                                        const rect = ctl.getBoundingClientRect();
+                                        if (rect.height > 0) {              
+                                            this.#currentPaddingTop = Math.floor(parseFloat(virtualContainer.style.paddingTop));
+                                            const newPadding = Math.max(0, this.#currentPaddingTop - rect.height);
+                                            virtualContainer.style.paddingTop = `${newPadding}px`;
+                                        }
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }, {
+                root: div,
+                rootMargin: '600px',
+                threshold: 0.0
+            });
+            
+            for (let i = 0; i < initialRenderCount && i < items.length; i++) {
+                const item = items[i];
+                
+                const ctl = this.createItemContainer();
                 const template = this.#getItemTemplateContent(item);
                 ctl.append(template.cloneNode(true));
                 ctl.model = item;
+                
+                const slotName = 'i-' + this.#slotCount++;
                 ctl.slot = slotName;
                 this.appendChild(ctl);
                 
                 const slot = document.createElement('slot');
                 slot.name = slotName;
-                slot.style.position = 'absolute';
-                slot.style.top = `${i * this.#itemHeight}px`;
-                slot.style.left = '0';
-                slot.style.height = `${this.#itemHeight}px`;
-                slot.style.display = 'block';
-                scrollContainer.appendChild(slot);
-            } else {
-                const slot = scrollContainer.querySelector(`slot[name="${slotName}"]`) as HTMLElement;
-                if (slot) {
-                    slot.style.top = `${i * this.#itemHeight}px`;
-                }
-                const ctl = currentSlots.get(i) as BindableControl;
-                if (ctl.model !== item) {
-                    ctl.model = item;
-                }
+                virtualContainer.appendChild(slot);
+                
+                this.#itemToElementMap.set(item, ctl);
+                this.#observer.observe(ctl);
             }
+            
+            requestAnimationFrame(() => {
+                let totalHeight = 0;
+                
+                this.#itemToElementMap.forEach((ctl) => { 
+                    const rect = ctl.getBoundingClientRect();
+                    if (rect.height > 0) {
+                        totalHeight += rect.height;
+                    }    
+                });
+                
+                const averageItemHeight = totalHeight / initialRenderCount;
+                this.#estimatedTotalHeight = averageItemHeight * items.length;
+                virtualContainer.style.paddingTop = '0px';
+                virtualContainer.style.paddingBottom = `${this.#estimatedTotalHeight - totalHeight}px`;
+            });
+        }
+    }
+    #renderItemAtIndex(index: number, insertAtBeginning: boolean = false): BindableControl | null {
+        const items = this.#displayedItems as any[];
+        if (index < 0 || index >= items.length || this.#itemToElementMap.has(items[index])) {
+            return null;
         }
         
-        console.log('Rendered items:', shouldBeVisible.size);
+        const virtualContainer = this.itemsContainer.firstElementChild as HTMLElement;
+        const item = items[index];
+        
+        const ctl = this.createItemContainer();
+        const template = this.#getItemTemplateContent(item);
+        ctl.append(template.cloneNode(true));
+        ctl.model = item;
+        
+        const slotName = 'i-' + this.#slotCount++;
+        ctl.slot = slotName;
+        this.appendChild(ctl);
+        
+        const slot = document.createElement('slot');
+        slot.name = slotName;
+        
+        if (insertAtBeginning) {
+            virtualContainer.insertBefore(slot, virtualContainer.firstChild);
+        } else {
+            virtualContainer.appendChild(slot);
+        }
+        
+        this.#itemToElementMap.set(item, ctl);
+        this.#observer!.observe(ctl);
+        
+        return ctl;
     }
 
     onItemsChangedOriginal() {
@@ -432,6 +457,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
                     tracker[addArrayListener](this.#onArrayChanged);
                 }
             }
+
             for (const item of items) {
                 const ctl = this.createItemContainer();
                 const template = this.#getItemTemplateContent(item);
@@ -446,39 +472,10 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
                 const slot = document.createElement('slot');
                 slot.name = slotName;
                 div.appendChild(slot);
-            }     
+            }
         }
     }
-    
-    onItemsChanged() {
-        if (this.#virtualized) {
-            this.onItemsChangedVirtualized();
-        }
-        else {
-            this.onItemsChangedOriginal();
-        }
-    }
-    get virtualized(): boolean | undefined {
-        return this.getProperty('virtualized', this.#virtualized);
-    }
-    set virtualized(value: boolean){
-        const prev = this.#virtualized;
-        this.#virtualized = value;
-        this.notifyPropertySetExplicitly('virtualized', prev, value);
-    }
-    static override get observedAttributes() {
-        return [...super.observedAttributes, 'virtualized'];
-    }
-    
-    override attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-        super.attributeChangedCallback(name, oldValue, newValue);
-        
-        if (name === 'virtualized') {
-            // Convert attribute to boolean property
-            this.virtualized = newValue !== null;
-        }
-    }
-    
+
     #onArrayChanged = (arr: any[], index: number, inserted: number, deleted: number, deletedItems: any | any[] | undefined) => {
         const div = this.itemsContainer;
 
@@ -550,6 +547,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
 
     override onDisconnectedFromDom(): void {
         this.#recentlyDeleted = undefined;
+        this.#itemToElementMap.clear();
         super.onDisconnectedFromDom();
         this.onItemsChanged();
         this.#lastUsedTemplate = undefined;

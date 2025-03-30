@@ -27,6 +27,11 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
     #currentPaddingBottom: number = 0;
     #averageItemHeight: number = 0;
     #initialRenderCount: number = 100;
+    #scrollHandler = () => {
+        if (this.#isViewportEmpty()) {
+            this.#handleEmptyViewport();
+        }
+    };
 
     constructor() {
         super();
@@ -218,7 +223,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         
         div.style.position = 'relative';
         div.style.overflow = 'auto';
-        div.style.height = this.getAttribute('height') || '100vh';
+        div.style.height = this.getAttribute('height') || '80vh';
         
         this.#displayedItems = items;
 
@@ -391,6 +396,8 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
                 virtualContainer.style.paddingTop = '0px';
                 virtualContainer.style.paddingBottom = `${this.#estimatedTotalHeight - totalHeight}px`;
             });
+
+            div.addEventListener('scroll', this.#scrollHandler);
         }
     }
     #renderItemAtIndex(index: number, insertAtBeginning: boolean = false): BindableControl | null {
@@ -450,13 +457,6 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         const startIndex = Math.max(0, safeIndex - halfCount);
         const endIndex = Math.min(items.length - 1, safeIndex + halfCount);
         
-        const paddingTop = startIndex * this.#averageItemHeight;
-        virtualContainer.style.paddingTop = `${paddingTop}px`;
-        
-        const itemsBelow = items.length - endIndex - 1;
-        const paddingBottom = itemsBelow * this.#averageItemHeight;
-        virtualContainer.style.paddingBottom = `${paddingBottom}px`;
-        
         for (let i = startIndex; i <= endIndex; i++) {
             const item = items[i];
             const ctl = this.#renderItemAtIndex(i);
@@ -469,6 +469,15 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         
         this.#firstRenderedIndex = startIndex;
         this.#lastRenderedIndex = endIndex;
+
+        requestAnimationFrame(() => {
+            const paddingTop = startIndex * this.#averageItemHeight;
+            virtualContainer.style.paddingTop = `${paddingTop}px`;
+            
+            const itemsBelow = items.length - endIndex - 1;
+            const paddingBottom = itemsBelow * this.#averageItemHeight;
+            virtualContainer.style.paddingBottom = `${paddingBottom}px`;
+        });
     }
     #isViewportEmpty(): boolean {
         const allElements = document.querySelectorAll('[slot^="i-"]');
@@ -625,6 +634,7 @@ export class ItemsControl extends HtmlControl implements HtmlControlBindableProp
         this.onItemsChanged();
         this.#lastUsedTemplate = undefined;
         this.#itemContainerTemplate = undefined;
+        this.itemsContainer.removeEventListener('scroll', this.#scrollHandler);
     }
 
     #itemContainerTemplate?: HTMLTemplateElement;
